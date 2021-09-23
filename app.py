@@ -1,4 +1,5 @@
 import os
+import re
 import json
 from operator import itemgetter
 from datetime import datetime, date
@@ -11,6 +12,7 @@ from lek import Lek
 from recept import Recept
 
 
+FONT = 'Times 15'
 BAZA_FAJL = 'data.json'
 BAZA_SADRZAJ = {}
 
@@ -34,271 +36,338 @@ class MyApp(Tk):
         fileBar = Menu(menu, tearoff=0)
 
         menu.add_cascade(menu=fileBar, label="File")
-        fileBar.add_command(label="Exit", command=0)
+        fileBar.add_command(label="Exit", command=lambda: Tk.destroy(self))
 
         menu.add_cascade(menu=pageBar, label="Stranice")
-        pageBar.add_command(label="Home", command=lambda: self.show_frame(HomePage))
-        pageBar.add_command(label="Pacijenti", command=lambda: self.show_frame(PacijentiPage))
-        pageBar.add_command(label="Lekari", command=lambda: self.show_frame(LekariPage))
-        pageBar.add_command(label="Recepti", command=lambda: self.show_frame(ReceptiPage))
-        pageBar.add_command(label="Lekovi", command=lambda: self.show_frame(LekoviPage))
+        pageBar.add_command(label="Home", command=lambda: self.show_frame(PocetnaStranica))
+        pageBar.add_command(label="Pacijenti", command=lambda: self.show_frame(PacijentiStranica))
+        pageBar.add_command(label="Lekari", command=lambda: self.show_frame(LekariStranica))
+        pageBar.add_command(label="Lekovi", command=lambda: self.show_frame(LekoviStranica))
+        pageBar.add_command(label="Recepti", command=lambda: self.show_frame(ReceptiStranica))
 
         Tk.config(self, menu=menu)
 
-        for page in (HomePage, PacijentiPage, LekariPage, ReceptiPage, LekoviPage):
+        for page in (PocetnaStranica, PacijentiStranica, LekariStranica, ReceptiStranica, LekoviStranica):
             frame = page(container, self)
             self.frames[page] = frame
             frame.grid(row=0, column=0, sticky="nsew")
 
-        self.show_frame(HomePage)
+        self.show_frame(PocetnaStranica)
 
     def show_frame(self, page):
         frame = self.frames[page]
         frame.tkraise()
 
 
-class HomePage(Frame):
+class PocetnaStranica(Frame):
 
     def __init__(self, parent, controler):
         Frame.__init__(self, parent)
-        text = Label(self, text="Projekat Apoteka", font='Times 15')
+        text = Label(self, text="Projekat Apoteka", font=FONT)
         text.pack(side="top", fill="both", expand=True)
 
 
-class PacijentiPage(Frame):
+class PacijentiStranica(Frame):
 
     def __init__(self, parent, controler):
         Frame.__init__(self, parent)
 
-        # Frame za widgete sa leve strane ekrana
-        self.leftFrame = Frame(self)
-        self.leftFrame.pack(side=LEFT, fill=BOTH, expand=TRUE)
-        # Labela koja stoji iznad polja za prikaz svih pacijenata
-        self.spisakLabel = Label(self.leftFrame, text="Spisak pacijenata", font='Times 15')
-        self.spisakLabel.pack(fill=X, padx=5, pady=5)
-        # Lista svih pacijenata, omoguceno selektovanje samo jedne vrednosti
-        self.spisakListBox = Listbox(self.leftFrame, selectmode=SINGLE)
-        self.spisakListBox.pack(fill=BOTH, expand=TRUE, padx=5, pady=5)
-        self.spisakListBox.bind('<<ListboxSelect>>', self.prikaziPodatke)
-        # Polje za unos pretrage pacijenata koje se nalazi ispod polja za prikaz pacijenata
-        self.pretragaEntry = Entry(self.leftFrame)
-        self.pretragaEntry.pack(side=LEFT, expand=TRUE, fill=BOTH, padx=5, pady=5)
-        # Dugme koje otvara popup prozor sa receptima selektovanog pacijenta
-        self.receptiButton = Button(self.leftFrame, text="Recepti", font='Times 15', command=self.prikaziRecepte)
-        self.receptiButton.pack(side=LEFT, expand=TRUE, fill=X, padx=5, pady=5)
-        # Frame za widgete sa desne strane ekrana
-        self.rightFrame = Frame(self,)
-        self.rightFrame.pack(side=RIGHT, fill=Y)
-        # Labela koja stoji iznad polja za prikaz podataka pacijenata
-        self.podaciLabel = Label(self.rightFrame, text="Podaci pacijenta", font='Times 15')
-        self.podaciLabel.pack(fill=X, padx=5, pady=5)
-        # Polje za prikaz podataka o pacijentu, read only
-        self.podaciText = Text(self.rightFrame, state=DISABLED)
-        self.podaciText.pack(fill=BOTH, expand=TRUE, padx=5, pady=5)
-        # Dugme koje otvara popup prozor sa formom za unos novog pacijenta
-        self.dodajButton = Button(self.rightFrame, text="Dodaj", font='Times 15', command=self.dodajTopLevel)
-        self.dodajButton.pack(side=LEFT, expand=TRUE, fill=X, padx=5, pady=5)
-        # Dugme koje otvara popup prozor sa formom za izmenu postojeceg pacijenta
-        self.izmeniButton = Button(self.rightFrame, text="Izmeni", font='Times 15', state=DISABLED, command=self.izmeniTopLevel)
-        self.izmeniButton.pack(side=LEFT, expand=TRUE, fill=X, padx=5, pady=5)
-        # Dugme za brisanje obelezenog pacijenta
-        self.obrisiButton = Button(self.rightFrame, text="Izbrisi", font='Times 15', state=DISABLED, command=self.obrisiPacijenta)
-        self.obrisiButton.pack(side=LEFT, expand=TRUE, fill=X, padx=5, pady=5)
+        self.leviFrame = Frame(self)
+        self.leviFrame.pack(side=LEFT, fill=BOTH, expand=TRUE)
+        self.spisakPacijenataLabel = Label(self.leviFrame, text="Spisak pacijenata", font=FONT)
+        self.spisakPacijenataLabel.pack(fill=X, padx=5, pady=5)
+        self.spisakPacijenataListBox = Listbox(self.leviFrame, selectmode=SINGLE, font=FONT)
+        self.spisakPacijenataListBox.pack(fill=BOTH, expand=TRUE, padx=5, pady=5)
+        self.pretragaPacijenataEntry = Entry(self.leviFrame, font=FONT)
+        self.pretragaPacijenataEntry.pack(side=LEFT, expand=TRUE, fill=BOTH, padx=5, pady=5)
+        self.receptiPacijentaButton = Button(self.leviFrame, text="Recepti", font=FONT, command=self.toplevel_recepti_pacijenta)
+        self.receptiPacijentaButton.pack(side=LEFT, expand=TRUE, fill=X, padx=5, pady=5)
+        self.desniFrame = Frame(self,)
+        self.desniFrame.pack(side=RIGHT, fill=Y)
+        self.podaciPacijentaLabel = Label(self.desniFrame, text="Podaci pacijenta", font=FONT)
+        self.podaciPacijentaLabel.pack(fill=X, padx=5, pady=5)
+        self.podaciPacijentaText = Text(self.desniFrame, font=FONT, state=DISABLED)
+        self.podaciPacijentaText.pack(fill=BOTH, expand=TRUE, padx=5, pady=5)
+        self.dodajPacijentaButton = Button(self.desniFrame, text="Dodaj", font=FONT, command=self.toplevel_dodaj_pacijenta)
+        self.dodajPacijentaButton.pack(side=LEFT, expand=TRUE, fill=X, padx=5, pady=5)
+        self.izmeniPacijentaButton = Button(self.desniFrame, text="Izmeni", font=FONT, state=DISABLED, command=self.toplevel_izmeni_pacijenta)
+        self.izmeniPacijentaButton.pack(side=LEFT, expand=TRUE, fill=X, padx=5, pady=5)
+        self.obrisiPacijentaButton = Button(self.desniFrame, text="Izbrisi", font=FONT, state=DISABLED, command=self.izbrisi_pacijenta)
+        self.obrisiPacijentaButton.pack(side=LEFT, expand=TRUE, fill=X, padx=5, pady=5)
 
-        # Izvlacenje liste svih pacijenata iz baze
-        pacijenti = BAZA_SADRZAJ["Pacijent"]
+        self.listaPacijenata = []
 
-        # Ubacivanje u listbox
-        index = 0
-        for pacijent in pacijenti:
-            self.spisakListBox.insert(index, f'{pacijent["Ime"]} {pacijent["Prezime"]}')
-            index += 1
+        self.osvezi_listu_pacijenata()
+        self.popuni_listu_pacijenata()
+        self.spisakPacijenataListBox.bind('<<ListboxSelect>>', self.prikazi_podatke_pacijenta)
+        self.pretragaPacijenataEntry.bind('<KeyRelease>', self.osvezi_listu_pacijenata)
 
-    def prikaziRecepte(self):
-        self.topLevel3 = Toplevel(self)
-        self.topLevel3.title("Recepti")
-        self.receptiText = Text(self.topLevel3, state=DISABLED)
-        self.receptiText.pack(padx=5, pady=5)
-        self.otkaziButton = Button(self.topLevel3, text="Otkazi", command=self.zatvoriRecepte)
-        self.otkaziButton.pack(padx=5, pady=5)
+    def toplevel_dodaj_pacijenta(self):
+        self.toplevelDodajPacijenta = Toplevel(self)
+        self.toplevelDodajPacijenta.title("Novi pacijent")
 
-        index = self.spisakListBox.curselection()[0]
-        pacijent = BAZA_SADRZAJ["Pacijent"][index]
+        self.imePacijentaLabel = Label(self.toplevelDodajPacijenta, text="Ime:", font=FONT)
+        self.imePacijentaLabel.grid(row=0, column=0, padx=5, pady=5)
+        self.imePacijentaEntry = Entry(self.toplevelDodajPacijenta, font=FONT)
+        self.imePacijentaEntry.grid(row=0, column=1, padx=5, pady=5)
+        self.prezimePacijentaLabel = Label(self.toplevelDodajPacijenta, text="Prezime:", font=FONT)
+        self.prezimePacijentaLabel.grid(row=1, column=0, padx=5, pady=5)
+        self.prezimePacijentaEntry = Entry(self.toplevelDodajPacijenta, font=FONT)
+        self.prezimePacijentaEntry.grid(row=1, column=1, padx=5, pady=5)
+        self.datumRodjenjaPacijentaLabel = Label(self.toplevelDodajPacijenta, text="Datum rodjenja:", font=FONT)
+        self.datumRodjenjaPacijentaLabel.grid(row=2, column=0, padx=5, pady=5)
+        self.datumRodjenjaPacijentaEntry = Entry(self.toplevelDodajPacijenta, font=FONT)
+        self.datumRodjenjaPacijentaEntry.grid(row=2, column=1, padx=5, pady=5)
+        self.jmbgPacijentaLabel = Label(self.toplevelDodajPacijenta, text="JMBG:", font=FONT)
+        self.jmbgPacijentaLabel.grid(row=3, column=0, padx=5, pady=5)
+        self.jmbgPacijentaEntry = Entry(self.toplevelDodajPacijenta, font=FONT)
+        self.jmbgPacijentaEntry.grid(row=3, column=1, padx=5, pady=5)
+        self.lboPacijentaLabel = Label(self.toplevelDodajPacijenta, text="LBO:", font=FONT)
+        self.lboPacijentaLabel.grid(row=4, column=0, padx=5, pady=5)
+        self.lboPacijentaEntry = Entry(self.toplevelDodajPacijenta, font=FONT)
+        self.lboPacijentaEntry.grid(row=4, column=1, padx=5, pady=5)
+        self.prihvatiPacijentaButton = Button(self.toplevelDodajPacijenta, text="Prihvati", command=self.toplevel_dodaj_pacijenta_prihvati)
+        self.prihvatiPacijentaButton.grid(row=5, column=0, padx=10, pady=10)
+        self.odbaciPacijentaButton = Button(self.toplevelDodajPacijenta, text="Odbaci", command=self.toplevel_dodaj_pacijenta_odbaci)
+        self.odbaciPacijentaButton.grid(row=5, column=1, padx=10, pady=10)
 
-        spisakRecepata = []
+        self.toplevelDodajPacijenta.grab_set()
 
-        for recept in BAZA_SADRZAJ["Recept"]:
-            if recept["Pacijent"] == pacijent:
-                spisakRecepata.append(recept)
-        
-        if spisakRecepata:
-            text = ""
-            for recept in spisakRecepata:
-                text += (
-                    'Pacijent:\n'
-                    f'\tIme: {recept["Pacijent"]["Ime"]}\n'
-                    f'\tPrezime: {recept["Pacijent"]["Prezime"]}\n'
-                    f'\tLBO: {recept["Pacijent"]["LBO"]}\n'
-                    'Lekar:\n'
-                    f'\tIme: {recept["Lekar"]["Ime"]}\n'
-                    f'\tPrezime: {recept["Lekar"]["Prezime"]}\n'
-                    f'\tJMBG: {recept["Lekar"]["JMBG"]}\n'
-                    'Lek:\n'
-                    f'\tNaziv: {recept["Lek"]["Naziv leka"]}\n'
-                    f'\tProizvodjac: {recept["Lek"]["Proizvodjac leka"]}\n'
-                    f'\tJKL: {recept["Lek"]["Sifra JKL"]}\n'
-                    f'Kolicina: {recept["Kolicina"]}\n'
-                    f'Izvestaj: {recept["Izvestaj"]}\n'
-                    f'Datum: {recept["Datum"]}\n\n'
-                    '------------------------------------------------------'
-                    '\n'
-                )
+    def toplevel_dodaj_pacijenta_prihvati(self):
+        imePacijenta = self.imePacijentaEntry.get()
+        prezimePacijenta = self.prezimePacijentaEntry.get()
+        datumRodjenjaPacijenta = self.datumRodjenjaPacijentaEntry.get()
+        jmbgPacijenta = self.jmbgPacijentaEntry.get()
+        lboPacijenta = self.lboPacijentaEntry.get()
+
+        if self.validacija_podataka_pacijenta(imePacijenta, prezimePacijenta, datumRodjenjaPacijenta, jmbgPacijenta, lboPacijenta):
+            novipacijent = Pacijent(jmbg=jmbgPacijenta, ime=imePacijenta, prezime=prezimePacijenta, datum_rodjenja=datumRodjenjaPacijenta, lbo=lboPacijenta)
             
-            self.receptiText.config(state=NORMAL)
-            self.receptiText.delete(1.0, END)
-            self.receptiText.insert(INSERT, text)
-            self.receptiText.config(state=DISABLED)
-        
-    def zatvoriRecepte(self):
-        self.topLevel3.destroy()
+            BAZA_SADRZAJ["Pacijent"].append(novipacijent.__str__())
+            BAZA_SADRZAJ["Pacijent"].sort(key=itemgetter("Prezime", "Ime"))
+            with open(BAZA_FAJL, 'w') as file:
+                json.dump(BAZA_SADRZAJ, file, indent=4)
 
-    def obrisiPacijenta(self):
-        index = self.spisakListBox.curselection()[0]
-        pacijent = BAZA_SADRZAJ["Pacijent"][index]
-        spisakRecepata = []
+            self.pretragaPacijenataEntry.delete(0, END)
+            self.osvezi_listu_pacijenata()
+            self.popuni_listu_pacijenata()
+            
+            indexNovogPacijenta = self.listaPacijenata.index(novipacijent.__str__())
+            self.spisakPacijenataListBox.select_set(indexNovogPacijenta)     
 
-        for recept in BAZA_SADRZAJ["Recept"]:
-            if recept["Pacijent"] == pacijent:
-                spisakRecepata.append(recept)
+            self.prikazi_podatke_pacijenta()
 
-        answer = messagebox.askyesno(title="Confirmation", message="Bice obrisani i povezani recepti!")
-        if answer:
-            BAZA_SADRZAJ["Pacijent"].remove(pacijent)
-            if spisakRecepata:
-                for recept in spisakRecepata:
-                    BAZA_SADRZAJ["Recept"].remove(recept)
+            self.toplevelDodajPacijenta.destroy()
+
+    def toplevel_dodaj_pacijenta_odbaci(self):
+        self.toplevelDodajPacijenta.destroy()
+
+    def toplevel_izmeni_pacijenta(self):
+        self.toplevelIzmeniPacijenta = Toplevel(self)
+        self.toplevelIzmeniPacijenta.title("Izmena pacijenta")
+
+        self.novoImePacijentaLabel = Label(self.toplevelIzmeniPacijenta, text="Ime:", font=FONT)
+        self.novoImePacijentaLabel.grid(row=0, column=0, padx=5, pady=5)
+        self.novoImePacijentaEntry = Entry(self.toplevelIzmeniPacijenta, font=FONT)
+        self.novoImePacijentaEntry.grid(row=0, column=1, padx=5, pady=5)
+        self.novoPrezimePacijentaLabel = Label(self.toplevelIzmeniPacijenta, text="Prezime:", font=FONT)
+        self.novoPrezimePacijentaLabel.grid(row=1, column=0, padx=5, pady=5)
+        self.novoPrezimePacijentaEntry = Entry(self.toplevelIzmeniPacijenta, font=FONT)
+        self.novoPrezimePacijentaEntry.grid(row=1, column=1, padx=5, pady=5)
+        self.noviDatumRodjenjaPacijentaLabel = Label(self.toplevelIzmeniPacijenta, text="Datum rodjenja:", font=FONT)
+        self.noviDatumRodjenjaPacijentaLabel.grid(row=2, column=0, padx=5, pady=5)
+        self.noviDatumRodjenjaPacijentaEntry = Entry(self.toplevelIzmeniPacijenta, font=FONT)
+        self.noviDatumRodjenjaPacijentaEntry.grid(row=2, column=1, padx=5, pady=5)
+        self.noviJmbgPacijentaLabel = Label(self.toplevelIzmeniPacijenta, text="JMBG:", font=FONT)
+        self.noviJmbgPacijentaLabel.grid(row=3, column=0, padx=5, pady=5)
+        self.noviJmbgPacijentaEntry = Entry(self.toplevelIzmeniPacijenta, font=FONT)
+        self.noviJmbgPacijentaEntry.grid(row=3, column=1, padx=5, pady=5)
+        self.noviLboPacijentaLabel = Label(self.toplevelIzmeniPacijenta, text="LBO:", font=FONT)
+        self.noviLboPacijentaLabel.grid(row=4, column=0, padx=5, pady=5)
+        self.noviLboPacijentaEntry = Entry(self.toplevelIzmeniPacijenta, font=FONT)
+        self.noviLboPacijentaEntry.grid(row=4, column=1, padx=5, pady=5)
+        self.prihvatiNovogPacijentaButton = Button(self.toplevelIzmeniPacijenta, text="Prihvati", command=self.toplevel_izmeni_pacijenta_prihvati)
+        self.prihvatiNovogPacijentaButton.grid(row=5, column=0, padx=10, pady=10)
+        self.odbaciNovogPacijentaButton = Button(self.toplevelIzmeniPacijenta, text="Odbaci", command=self.toplevel_izmeni_pacijenta_odbaci)
+        self.odbaciNovogPacijentaButton.grid(row=5, column=1, padx=10, pady=10)
+
+        self.stariPacijent = {}
+        indexTuple = self.spisakPacijenataListBox.curselection()
+        if indexTuple:
+            index = indexTuple[0]
+
+            self.stariPacijent = self.listaPacijenata[index]
+            self.novoImePacijentaEntry.insert(0, self.stariPacijent["Ime"])
+            self.novoPrezimePacijentaEntry.insert(0, self.stariPacijent["Prezime"])
+            self.noviDatumRodjenjaPacijentaEntry.insert(0, self.stariPacijent["Datum rodjenja"])
+            self.noviJmbgPacijentaEntry.insert(0, self.stariPacijent["JMBG"])
+            self.noviLboPacijentaEntry.insert(0, self.stariPacijent["LBO"])
+
+            self.noviJmbgPacijentaEntry.config(state=DISABLED)
+            self.noviLboPacijentaEntry.config(state=DISABLED)
+
+            self.toplevelIzmeniPacijenta.grab_set()
+
+    def toplevel_izmeni_pacijenta_prihvati(self):
+        novoImePacijenta = self.novoImePacijentaEntry.get()
+        novoPrezimePacijenta = self.novoPrezimePacijentaEntry.get()
+        noviDatumRodjenjaPacijenta = self.noviDatumRodjenjaPacijentaEntry.get()
+        noviJmbgPacijenta = self.noviJmbgPacijentaEntry.get()
+        noviLboPacijenta = self.noviLboPacijentaEntry.get()
+
+        if self.validacija_izmene_podataka_pacijenta(novoImePacijenta, novoPrezimePacijenta, noviDatumRodjenjaPacijenta):
+            BAZA_SADRZAJ["Pacijent"].remove(self.stariPacijent)
+
+            novipacijent = Pacijent(jmbg=noviJmbgPacijenta, ime=novoImePacijenta, prezime=novoPrezimePacijenta, datum_rodjenja=noviDatumRodjenjaPacijenta, lbo=noviLboPacijenta)
+            
+            BAZA_SADRZAJ["Pacijent"].append(novipacijent.__str__())
+            BAZA_SADRZAJ["Pacijent"].sort(key=itemgetter("Prezime", "Ime"))
+
+            for recept in BAZA_SADRZAJ["Recept"]:
+                if recept["Pacijent"] == self.stariPacijent:
+                    recept["Pacijent"] = novipacijent.__str__()
 
             with open(BAZA_FAJL, 'w') as file:
                 json.dump(BAZA_SADRZAJ, file, indent=4)
 
-            self.pretragaEntry.delete(0, END)
-            self.spisakListBox.delete(0, END)
-            index = 0
-            for pacijent in BAZA_SADRZAJ["Pacijent"]:
-                self.spisakListBox.insert(index, f'{pacijent["Ime"]} {pacijent["Prezime"]}')
-
-            self.podaciText.config(state=NORMAL)
-            self.podaciText.delete(1.0, END)
-            self.podaciText.config(state=DISABLED)
-
-    def prikaziPodatke(self, *args):
-        index = self.spisakListBox.curselection()[0]
-
-        # Formatiranje podataka o pacijentu za ispis
-        text = (
-            f'Ime: {BAZA_SADRZAJ["Pacijent"][index]["Ime"]}\n'
-            f'Prezime: {BAZA_SADRZAJ["Pacijent"][index]["Prezime"]}\n'
-            f'Datum rodjenja: {BAZA_SADRZAJ["Pacijent"][index]["Datum rodjenja"]}\n'
-            f'JMBG: {BAZA_SADRZAJ["Pacijent"][index]["JMBG"]}\n'
-            f'LBO: {BAZA_SADRZAJ["Pacijent"][index]["LBO"]}'
-        )
+            self.pretragaPacijenataEntry.delete(0, END)
+            self.osvezi_listu_pacijenata()
+            self.popuni_listu_pacijenata()
             
-        # Vracanje u normalan mod radi upisa teksta
-        self.podaciText.config(state=NORMAL)
-        # Brisanje sadrzaj texboxa
-        self.podaciText.delete(1.0, END)
-        # Unos podataka u textbox
-        self.podaciText.insert(INSERT, text)
-        # Vracanje u read-only mod
-        self.podaciText.config(state=DISABLED)
-        # Omogucavanje dugmadi za brisanja i izmene
-        self.izmeniButton.config(state=NORMAL)
-        self.obrisiButton.config(state=NORMAL)
+            indexNovogPacijenta = self.listaPacijenata.index(novipacijent.__str__())
+            self.spisakPacijenataListBox.select_set(indexNovogPacijenta)     
 
-    def dodajTopLevel(self):
-        self.topLevel = Toplevel(self)
-        self.topLevel.title("Novi pacijent")
-        self.topLevel.geometry("300x250")
-        self.topLevel.minsize(300, 250)
-        self.topLevel.maxsize(300, 250)
+            self.prikazi_podatke_pacijenta()
 
-        # Unos imena
-        self.imeLabel = Label(self.topLevel, text="Ime:", font='Times 15')
-        self.imeLabel.grid(row=0, column=0, padx=5, pady=5)
-        self.imeEntry = Entry(self.topLevel)
-        self.imeEntry.grid(row=0, column=1, padx=5, pady=5)
-        # Unos prezimena
-        self.prezimeLabel = Label(self.topLevel, text="Prezime:", font='Times 15')
-        self.prezimeLabel.grid(row=1, column=0, padx=5, pady=5)
-        self.prezimeEntry = Entry(self.topLevel)
-        self.prezimeEntry.grid(row=1, column=1, padx=5, pady=5)
-        # Unos datuma
-        self.rodjenjeLabel = Label(self.topLevel, text="Datum rodjenja:", font='Times 15')
-        self.rodjenjeLabel.grid(row=2, column=0, padx=5, pady=5)
-        self.rodjenjeEntry = Entry(self.topLevel)
-        self.rodjenjeEntry.grid(row=2, column=1, padx=5, pady=5)
-        # Unos JMBG-a
-        self.jmbgLabel = Label(self.topLevel, text="JMBG:", font='Times 15')
-        self.jmbgLabel.grid(row=3, column=0, padx=5, pady=5)
-        self.jmbgEntry = Entry(self.topLevel)
-        self.jmbgEntry.grid(row=3, column=1, padx=5, pady=5)
-        # Unos LBO-a
-        self.lboLabel = Label(self.topLevel, text="LBO:", font='Times 15')
-        self.lboLabel.grid(row=4, column=0, padx=5, pady=5)
-        self.lboEntry = Entry(self.topLevel)
-        self.lboEntry.grid(row=4, column=1, padx=5, pady=5)
-        # Dugme za primenu pormena
-        self.prihvatiButton = Button(self.topLevel, text="Prihvati", command=self.apply_dodajTopLevel)
-        self.prihvatiButton.grid(row=5, column=0, padx=10, pady=10)
-        # Dugme za odbacivanje promena
-        self.odbaciButton = Button(self.topLevel, text="Odbaci", command=self.close_dodajTopLevel)
-        self.odbaciButton.grid(row=5, column=1, padx=10, pady=10)
-        # Omogucava da osnovni program bude nedostupan kada je popup strana aktivna
-        self.topLevel.grab_set()
+            self.toplevelIzmeniPacijenta.destroy()
 
-    def apply_dodajTopLevel(self):
-        # vrednost iz polja ime
-        ime = self.imeEntry.get()
-        # vrednost iz polja prezime
-        prezime = self.prezimeEntry.get()
-        # vrednost iz pola datum rodjenja ['dan', 'mesec', 'godina']
-        rodjenje = self.rodjenjeEntry.get().split('.')
-        # formatiran datum u oblik koji nam odgovara za poredjenje datetime.date('godina', 'mesec', 'dan')
-        datumRodjenja = date(int(rodjenje[2]), int(rodjenje[1]), int(rodjenje[0]))
-        # danasnji datum u dormatu datetime.date('godina', 'mesec', 'dan')
-        danasnjiDatum = datetime.now().date()
-        # vrednost iz polja jmbg
-        jmbg = self.jmbgEntry.get()
-        # vrednos iz polja lbo
-        lbo = self.lboEntry.get()
-        # spisak svih jmbg i lbo-a iz baze
+    def toplevel_izmeni_pacijenta_odbaci(self):
+        self.toplevelIzmeniPacijenta.destroy()
+
+    def toplevel_recepti_pacijenta(self):
+        self.toplevelRecepti = Toplevel(self)
+        self.toplevelRecepti.title("Recepti")
+        self.receptiPacijentaText = Text(self.toplevelRecepti, state=DISABLED)
+        self.receptiPacijentaText.pack(padx=5, pady=5)
+        self.izadjiButton = Button(self.toplevelRecepti, text="Izadji", command=self.toplevel_recepti_pacijenta_zatvori)
+        self.izadjiButton.pack(padx=5, pady=5)
+        
+        self.toplevel_recepti_pacijenta_popuni()
+        self.toplevelRecepti.grab_set()
+
+    def toplevel_recepti_pacijenta_popuni(self, *args):
+        text = ""
+
+        indexTuple = self.spisakPacijenataListBox.curselection()
+        if indexTuple:
+            index = indexTuple[0]
+            pacijent = self.listaPacijenata[index]
+            for recept in BAZA_SADRZAJ["Recept"]:
+                if recept["Pacijent"] == pacijent:
+                    text += (
+                        f'Pacijent:\n\tIme: {recept["Pacijent"]["Ime"]}\n\tPrezime: {recept["Pacijent"]["Prezime"]}\n\tLBO: {recept["Pacijent"]["LBO"]}\n'
+                        f'Lekar:\n\tIme: {recept["Lekar"]["Ime"]}\n\tPrezime: {recept["Lekar"]["Prezime"]}\n\tJMBG: {recept["Lekar"]["JMBG"]}\n'
+                        f'Lek:\n\tNaziv: {recept["Lek"]["Naziv leka"]}\n\tProizvodjac: {recept["Lek"]["Proizvodjac leka"]}\n\tJKL: {recept["Lek"]["Sifra JKL"]}\n'
+                        f'Kolicina: {recept["Kolicina"]}\n'
+                        f'Izvestaj: {recept["Izvestaj"]}\n'
+                        f'Datum: {recept["Datum"]}\n\n'
+                        '------------------------------------------------------\n'
+                    )
+            
+        self.receptiPacijentaText.config(state=NORMAL)
+        self.receptiPacijentaText.delete(1.0, END)
+        self.receptiPacijentaText.insert(INSERT, text)
+        self.receptiPacijentaText.config(state=DISABLED)
+
+    def toplevel_recepti_pacijenta_zatvori(self):
+        self.toplevelRecepti.destroy()
+
+    def izbrisi_pacijenta(self):
+        if messagebox.askyesno(title="Potvrda", message="Bice obrisani i povezani recepti!"):
+            
+            indexTuple = self.spisakPacijenataListBox.curselection()
+            if indexTuple:
+                index = indexTuple[0]
+                
+                pacijent = self.listaPacijenata[index]
+                recepti = [recept for recept in BAZA_SADRZAJ["Recept"] if recept["Pacijent"] == pacijent]
+                        
+                BAZA_SADRZAJ["Pacijent"].remove(pacijent)
+                for recept in recepti:
+                    BAZA_SADRZAJ["Recept"].remove(recept)
+
+            BAZA_SADRZAJ["Pacijent"].sort(key=itemgetter("Prezime", "Ime"))
+            with open(BAZA_FAJL, 'w') as file:
+                json.dump(BAZA_SADRZAJ, file, indent=4)
+            
+            self.pretragaPacijenataEntry.delete(0, END)
+            self.osvezi_listu_pacijenata()
+            self.popuni_listu_pacijenata()
+
+    def osvezi_listu_pacijenata(self, *args):
+        sadrzajPretrage = self.pretragaPacijenataEntry.get()
+        self.listaPacijenata = []
+
+        if self.pretragaPacijenataEntry.get() == "":
+            self.listaPacijenata = BAZA_SADRZAJ["Pacijent"]
+        
+        else:
+            for pacijent in BAZA_SADRZAJ["Pacijent"]:
+                if pacijent["Ime"].lower().find(sadrzajPretrage.lower()) != -1 or pacijent["Prezime"].lower().find(sadrzajPretrage.lower()) != -1:
+                    self.listaPacijenata.append(pacijent)
+
+        self.popuni_listu_pacijenata(self)
+
+    def popuni_listu_pacijenata(self, *args):
+        self.spisakPacijenataListBox.delete(0, END)
+        self.podaciPacijentaText.config(state=NORMAL)
+        self.podaciPacijentaText.delete(1.0, END)
+        self.podaciPacijentaText.config(state=DISABLED)
+        
+        for pacijent in self.listaPacijenata:
+            self.spisakPacijenataListBox.insert(self.listaPacijenata.index(pacijent), f'{pacijent["Ime"]} {pacijent["Prezime"]}')
+
+    def prikazi_podatke_pacijenta(self, *args):
+        text = ""
+        
+        indexTuple = self.spisakPacijenataListBox.curselection()
+        if indexTuple:
+            index = indexTuple[0]
+
+            text = (
+                f'Ime: {self.listaPacijenata[index]["Ime"]}\n'
+                f'Prezime: {self.listaPacijenata[index]["Prezime"]}\n'
+                f'Datum rodjenja: {self.listaPacijenata[index]["Datum rodjenja"]}\n'
+                f'JMBG: {self.listaPacijenata[index]["JMBG"]}\n'
+                f'LBO: {self.listaPacijenata[index]["LBO"]}'
+            )
+            
+        self.podaciPacijentaText.config(state=NORMAL)
+        self.podaciPacijentaText.delete(1.0, END)
+        self.podaciPacijentaText.insert(INSERT, text)
+        self.podaciPacijentaText.config(state=DISABLED)
+        self.izmeniPacijentaButton.config(state=NORMAL)
+        self.obrisiPacijentaButton.config(state=NORMAL)
+
+    def validacija_podataka_pacijenta(self, ime, prezime, datum, jmbg, lbo):
+        oblikDatuma = r"^(0[1-9]|[12][0-9]|3[01])[.](0[1-9]|1[012])[.](\d\d\d\d)"
         jmbgLst = []
         lboLst = []
 
-        # Iz sadrzaja baze se izvlaci lista recnika gde svaki recnik predstavlja jednog pacijenta
-        # Ukoliko lista pacijenata (pacijenti) nije prazna prolazi se kroz svaki recnik (pacijent)
-        # Radi se interacija kroz parove key-value
-        # Na osnovu key vrednosti ("JMBG" ili "LBO") value se smesta u jednu od lista (jmbgLst ili lboLst)
-        pacijenti = BAZA_SADRZAJ["Pacijent"]
-        if pacijenti:
-            for pacijent in pacijenti:
-                for key, value in pacijent.items():
-                    if key == "JMBG":
-                        jmbgLst.append(value)
-                    elif key == "LBO":
-                        lboLst.append(value)
-
-        # Provera uslova za dodavanje novog korisnika
-        # Ime: bar dva karaktera
-        # Prezime: bar dva karaktera
-        # Datum: najkasnije danasnji
-        # JMBG: jedinstvena vrednost duzine 13 karaktera
-        # LBOL jedinstvem vrednost duzine 11 karaktera
+        for pacijent in BAZA_SADRZAJ["Pacijent"]:
+            for key, value in pacijent.items():
+                if key == "JMBG":
+                    jmbgLst.append(value)
+                elif key == "LBO":
+                    lboLst.append(value)
+        
         if len(ime) < 2:
             messagebox.showerror("Error", "Ime mora biti duze od 2 karaktera")
         elif len(prezime) < 2:
             messagebox.showerror("Error", "Prezime mora biti duze od 2 karaktera")
-        elif datumRodjenja > danasnjiDatum:
+        elif not re.match(oblikDatuma, datum):
+            messagebox.showerror("Error", "Datum mora biti u formatu dd.MM.yyyy")
+        elif date(int(datum.split('.')[2]), int(datum.split('.')[1]), int(datum.split('.')[0])) > datetime.now().date():
             messagebox.showerror("Error", "Datum moze biti najkasnije danasnji")
         elif jmbg in jmbgLst:
             messagebox.showerror("Error", "JMBG postoji u bazi")
@@ -309,1101 +378,905 @@ class PacijentiPage(Frame):
         elif len(lbo) != 11:
             messagebox.showerror("Error", "LBO mora biti 11 karaktera")
         else:
-            # Ako si svi gore uslovi ispunjeni kreira se novi objekat klase Pacijent sa vrednostima iz polja za unos
-            novipacijent = Pacijent(jmbg=jmbg, ime=ime, prezime=prezime, datum_rodjenja=datumRodjenja.strftime("%d-%m-%Y"), lbo=lbo)
-            # Opis ovog objekta se smesta u globalnu promenljivu kako bi bio dostupan u nastavku programa
-            BAZA_SADRZAJ["Pacijent"].append(novipacijent.__str__())
-            # Sortiranje pre upisa u fajl
-            BAZA_SADRZAJ["Pacijent"].sort(key=itemgetter("Prezime", "Ime"))
-            # Takodje ova promena se unosi i u fajl
-            with open(BAZA_FAJL, 'w') as file:
-                json.dump(BAZA_SADRZAJ, file, indent=4)
+            return True
 
-            # Brisanje teksta u polju za pretragu
-            self.pretragaEntry.delete(0, END)
-            # Brisanje liste za prikaz pacijenata
-            self.spisakListBox.delete(0, END)
-            # Ubacivanje u listu za prikaz
-            index = 0
-            selectIndex = 0
-            for pacijent in BAZA_SADRZAJ["Pacijent"]:
-                self.spisakListBox.insert(index, f'{pacijent["Ime"]} {pacijent["Prezime"]}')
-                if novipacijent.__str__() == pacijent:
-                    selectIndex = index
-
-                index += 1
-
-            # Selektovanje novog unosa
-            self.spisakListBox.select_set(selectIndex)
-            # Formatiranje podataka o pacijentu za ispis
-            text = (
-                f'Ime: {BAZA_SADRZAJ["Pacijent"][selectIndex]["Ime"]}\n'
-                f'Prezime: {BAZA_SADRZAJ["Pacijent"][selectIndex]["Prezime"]}\n'
-                f'Datum rodjenja: {BAZA_SADRZAJ["Pacijent"][selectIndex]["Datum rodjenja"]}\n'
-                f'JMBG: {BAZA_SADRZAJ["Pacijent"][selectIndex]["JMBG"]}\n'
-                f'LBO: {BAZA_SADRZAJ["Pacijent"][selectIndex]["LBO"]}'
-            )
-            
-            # Vracanje u normalan mod radi upisa teksta
-            self.podaciText.config(state=NORMAL)
-            # Brisanje sadrzaj texboxa
-            self.podaciText.delete(1.0, END)
-            # Unos podataka u textbox
-            self.podaciText.insert(INSERT, text)
-            # Vracanje u read-only mod
-            self.podaciText.config(state=DISABLED)
-            # Unistavanje popup prozora
-            self.topLevel.destroy()
-
-    def close_dodajTopLevel(self):
-        self.topLevel.destroy()
-
-    def izmeniTopLevel(self):
-        self.topLevel2 = Toplevel(self)
-        self.topLevel2.title("Izmena pacijenta")
-        self.topLevel2.geometry("300x250")
-        self.topLevel2.minsize(300, 250)
-        self.topLevel2.maxsize(300, 250)
-
-        # Unos imena
-        self.imeLabel2 = Label(self.topLevel2, text="Ime:", font='Times 15')
-        self.imeLabel2.grid(row=0, column=0, padx=5, pady=5)
-        self.imeEntry2 = Entry(self.topLevel2)
-        self.imeEntry2.grid(row=0, column=1, padx=5, pady=5)
-        # Unos prezimena
-        self.prezimeLabel2 = Label(self.topLevel2, text="Prezime:", font='Times 15')
-        self.prezimeLabel2.grid(row=1, column=0, padx=5, pady=5)
-        self.prezimeEntry2 = Entry(self.topLevel2)
-        self.prezimeEntry2.grid(row=1, column=1, padx=5, pady=5)
-        # Unos datuma
-        self.rodjenjeLabel2 = Label(self.topLevel2, text="Datum rodjenja:", font='Times 15')
-        self.rodjenjeLabel2.grid(row=2, column=0, padx=5, pady=5)
-        self.rodjenjeEntry2 = Entry(self.topLevel2)
-        self.rodjenjeEntry2.grid(row=2, column=1, padx=5, pady=5)
-        # Unos JMBG-a
-        self.jmbgLabel2 = Label(self.topLevel2, text="JMBG:", font='Times 15')
-        self.jmbgLabel2.grid(row=3, column=0, padx=5, pady=5)
-        self.jmbgEntry2 = Entry(self.topLevel2)
-        self.jmbgEntry2.grid(row=3, column=1, padx=5, pady=5)
-        # Unos LBO-a
-        self.lboLabel2 = Label(self.topLevel2, text="LBO:", font='Times 15')
-        self.lboLabel2.grid(row=4, column=0, padx=5, pady=5)
-        self.lboEntry2 = Entry(self.topLevel2)
-        self.lboEntry2.grid(row=4, column=1, padx=5, pady=5)
-        # Dugme za primenu pormena
-        self.prihvatiButton2 = Button(self.topLevel2, text="Prihvati", command=self.apply_izmeniTopLevel)
-        self.prihvatiButton2.grid(row=5, column=0, padx=10, pady=10)
-        # Dugme za odbacivanje promena
-        self.odbaciButton2 = Button(self.topLevel2, text="Odbaci", command=self.close_izmeniTopLevel)
-        self.odbaciButton2.grid(row=5, column=1, padx=10, pady=10)
-
-        # Trenutni podaci
-        self.selectedIndex = self.spisakListBox.curselection()[0]
-        self.staroIme = BAZA_SADRZAJ["Pacijent"][self.selectedIndex]["Ime"]
-        self.staroPrezime = BAZA_SADRZAJ["Pacijent"][self.selectedIndex]["Prezime"]
-        self.stariDatumRodjenja = BAZA_SADRZAJ["Pacijent"][self.selectedIndex]["Datum rodjenja"].replace("-", ".")
-        jmbg = BAZA_SADRZAJ["Pacijent"][self.selectedIndex]["JMBG"]
-        lbo = BAZA_SADRZAJ["Pacijent"][self.selectedIndex]["LBO"]
-
-        # Popunjavanje polja
-        self.imeEntry2.insert(0, self.staroIme)
-        self.prezimeEntry2.insert(0, self.staroPrezime)
-        self.rodjenjeEntry2.insert(0, self.stariDatumRodjenja)
-        self.jmbgEntry2.insert(0, jmbg)
-        self.lboEntry2.insert(0, lbo)
-
-        # onemogucavanje polja lbo i jmbg
-        self.jmbgEntry2.config(state=DISABLED)
-        self.lboEntry2.config(state=DISABLED)
-        # Omogucava da osnovni program bude nedostupan kada je popup strana aktivna
-        self.topLevel2.grab_set()
-
-    def apply_izmeniTopLevel(self):
-        # vrednost iz polja ime
-        novoIme = self.imeEntry2.get()
-        # vrednost iz polja prezime
-        novoPrezime = self.prezimeEntry2.get()
-        # vrednost iz polja datum rodjenja
-        rodjenje = self.rodjenjeEntry2.get()
-        # vrednost iz pola datum rodjenja ['dan', 'mesec', 'godina']
-        novoRodjenje = rodjenje.split('.')
-        # formatiran datum u oblik koji nam odgovara za poredjenje datetime.date('godina', 'mesec', 'dan')
-        noviDatumRodjenja = date(int(novoRodjenje[2]), int(novoRodjenje[1]), int(novoRodjenje[0]))
-        # danasnji datum u dormatu datetime.date('godina', 'mesec', 'dan')
-        danasnjiDatum = datetime.now().date()
-        # vrednost iz polja jmbg
-        jmbg = self.jmbgEntry2.get()
-        # vrednos iz polja lbo
-        lbo = self.lboEntry2.get()
+    def validacija_izmene_podataka_pacijenta(self, ime, prezime, datum):
+        oblikDatuma = r"^(0[1-9]|[12][0-9]|3[01])[.](0[1-9]|1[012])[.](\d\d\d\d)"
         
-        if len(novoIme) < 2:
-            messagebox.showerror("Error", "Ime mora biti duze od 2 karaktera")
-        elif len(novoPrezime) < 2:
-            messagebox.showerror("Error", "Prezime mora biti duze od 2 karaktera")
-        elif noviDatumRodjenja > danasnjiDatum:
-            messagebox.showerror("Error", "Datum moze biti najkasnije danasnji")
-        else:
-            # Ukoliko je validacija prosla radi se izmena vrednosti
-            BAZA_SADRZAJ["Pacijent"][self.selectedIndex]["Ime"] = novoIme
-            BAZA_SADRZAJ["Pacijent"][self.selectedIndex]["Prezime"] = novoPrezime
-            BAZA_SADRZAJ["Pacijent"][self.selectedIndex]["Datum rodjenja"] = noviDatumRodjenja.strftime("%d-%m-%Y")
-            # Sortiranje pre upisa u fajl
-            BAZA_SADRZAJ["Pacijent"].sort(key=itemgetter("Prezime", "Ime"))
-            # Takodje ova promena se unosi i u fajl
-            with open(BAZA_FAJL, 'w') as file:
-                json.dump(BAZA_SADRZAJ, file, indent=4)
-
-            # Brisanje teksta u polju za pretragu
-            self.pretragaEntry.delete(0, END)
-            # Brisanje liste za prikaz pacijenata
-            self.spisakListBox.delete(0, END)
-            # Ubacivanje u listu za prikaz
-            index = 0
-            selectIndex = 0
-            for pacijent in BAZA_SADRZAJ["Pacijent"]:
-                self.spisakListBox.insert(index, f'{pacijent["Ime"]} {pacijent["Prezime"]}')
-                if jmbg == pacijent["JMBG"]:
-                    selectIndex = index
-
-                index += 1
-
-            # Selektovanje novog unosa
-            self.spisakListBox.select_set(selectIndex)
-            # Formatiranje podataka o pacijentu za ispis
-            text = (
-                f'Ime: {BAZA_SADRZAJ["Pacijent"][selectIndex]["Ime"]}\n'
-                f'Prezime: {BAZA_SADRZAJ["Pacijent"][selectIndex]["Prezime"]}\n'
-                f'Datum rodjenja: {BAZA_SADRZAJ["Pacijent"][selectIndex]["Datum rodjenja"]}\n'
-                f'JMBG: {BAZA_SADRZAJ["Pacijent"][selectIndex]["JMBG"]}\n'
-                f'LBO: {BAZA_SADRZAJ["Pacijent"][selectIndex]["LBO"]}'
-            )
-            
-            # Vracanje u normalan mod radi upisa teksta
-            self.podaciText.config(state=NORMAL)
-            # Brisanje sadrzaj texboxa
-            self.podaciText.delete(1.0, END)
-            # Unos podataka u textbox
-            self.podaciText.insert(INSERT, text)
-            # Vracanje u read-only mod
-            self.podaciText.config(state=DISABLED)
-            # Unistavanje popup prozora
-            self.topLevel2.destroy()
-
-    def close_izmeniTopLevel(self):
-        self.topLevel2.destroy()
-
-
-class LekariPage(Frame):
-
-    def __init__(self, parent, controler):
-        Frame.__init__(self, parent)
-
-        self.leftFrame = Frame(self)
-        self.leftFrame.pack(side=LEFT, fill=BOTH, expand=TRUE)
-        self.spisakLabel = Label(self.leftFrame, text="Spisak lekara", font='Times 15')
-        self.spisakLabel.pack(fill=X, padx=5, pady=5)
-        self.spisakListBox = Listbox(self.leftFrame, selectmode=SINGLE)
-        self.spisakListBox.pack(fill=BOTH, expand=TRUE, padx=5, pady=5)
-        self.spisakListBox.bind('<<ListboxSelect>>', self.prikaziPodatke)
-        self.pretragaEntry = Entry(self.leftFrame)
-        self.pretragaEntry.pack(side=LEFT, expand=TRUE, fill=BOTH, padx=5, pady=5)
-        self.receptiButton = Button(self.leftFrame, text="Recepti", font='Times 15', command=self.prikaziRecepte)
-        self.receptiButton.pack(side=LEFT, expand=TRUE, fill=X, padx=5, pady=5)
-        self.rightFrame = Frame(self,)
-        self.rightFrame.pack(side=RIGHT, fill=Y)
-        self.podaciLabel = Label(self.rightFrame, text="Podaci lekara", font='Times 15')
-        self.podaciLabel.pack(fill=X, padx=5, pady=5)
-        self.podaciText = Text(self.rightFrame, state=DISABLED)
-        self.podaciText.pack(fill=BOTH, expand=TRUE, padx=5, pady=5)
-        self.dodajButton = Button(self.rightFrame, text="Dodaj", font='Times 15', command=self.dodajTopLevel)
-        self.dodajButton.pack(side=LEFT, expand=TRUE, fill=X, padx=5, pady=5)
-        self.izmeniButton = Button(self.rightFrame, text="Izmeni", font='Times 15', state=DISABLED, command=self.izmeniTopLevel)
-        self.izmeniButton.pack(side=LEFT, expand=TRUE, fill=X, padx=5, pady=5)
-        self.obrisiButton = Button(self.rightFrame, text="Izbrisi", font='Times 15', state=DISABLED, command=self.obrisiLekara)
-        self.obrisiButton.pack(side=LEFT, expand=TRUE, fill=X, padx=5, pady=5)
-
-        lekari = BAZA_SADRZAJ["Lekar"]
-
-        index = 0
-        for lekar in lekari:
-            self.spisakListBox.insert(index, f'{lekar["Ime"]} {lekar["Prezime"]}')
-            index += 1
-
-    def prikaziRecepte(self):
-        self.topLevel3 = Toplevel(self)
-        self.topLevel3.title("Recepti")
-        self.receptiText = Text(self.topLevel3, state=DISABLED)
-        self.receptiText.pack(padx=5, pady=5)
-        self.otkaziButton = Button(self.topLevel3, text="Otkazi", command=self.zatvoriRecepte)
-        self.otkaziButton.pack(padx=5, pady=5)
-
-        index = self.spisakListBox.curselection()[0]
-        lekar = BAZA_SADRZAJ["Lekar"][index]
-
-        spisakRecepata = []
-
-        for recept in BAZA_SADRZAJ["Recept"]:
-            if recept["Lekar"] == lekar:
-                spisakRecepata.append(recept)
-        
-        if spisakRecepata:
-            text = ""
-            for recept in spisakRecepata:
-                text += (
-                    'Pacijent:\n'
-                    f'\tIme: {recept["Pacijent"]["Ime"]}\n'
-                    f'\tPrezime: {recept["Pacijent"]["Prezime"]}\n'
-                    f'\tLBO: {recept["Pacijent"]["LBO"]}\n'
-                    'Lekar:\n'
-                    f'\tIme: {recept["Lekar"]["Ime"]}\n'
-                    f'\tPrezime: {recept["Lekar"]["Prezime"]}\n'
-                    f'\tJMBG: {recept["Lekar"]["JMBG"]}\n'
-                    'Lek:\n'
-                    f'\tNaziv: {recept["Lek"]["Naziv leka"]}\n'
-                    f'\tProizvodjac: {recept["Lek"]["Proizvodjac leka"]}\n'
-                    f'\tJKL: {recept["Lek"]["Sifra JKL"]}\n'
-                    f'Kolicina: {recept["Kolicina"]}\n'
-                    f'Izvestaj: {recept["Izvestaj"]}\n'
-                    f'Datum: {recept["Datum"]}\n\n'
-                    '------------------------------------------------------'
-                    '\n'
-                )
-            
-            self.receptiText.config(state=NORMAL)
-            self.receptiText.delete(1.0, END)
-            self.receptiText.insert(INSERT, text)
-            self.receptiText.config(state=DISABLED)
-        
-    def zatvoriRecepte(self):
-        self.topLevel3.destroy()
-
-    def obrisiLekara(self):
-        index = self.spisakListBox.curselection()[0]
-        lekar = BAZA_SADRZAJ["Lekar"][index]
-        spisakRecepata = []
-
-        for recept in BAZA_SADRZAJ["Recept"]:
-            if recept["Lekar"] == lekar:
-                spisakRecepata.append(recept)
-
-        answer = messagebox.askyesno(title="Confirmation", message="Bice obrisani i povezani recepti!")
-        if answer:
-            BAZA_SADRZAJ["Lekar"].remove(lekar)
-            if spisakRecepata:
-                for recept in spisakRecepata:
-                    BAZA_SADRZAJ["Recept"].remove(recept)
-
-            with open(BAZA_FAJL, 'w') as file:
-                json.dump(BAZA_SADRZAJ, file, indent=4)
-
-            self.pretragaEntry.delete(0, END)
-            self.spisakListBox.delete(0, END)
-            index = 0
-            for lekar in BAZA_SADRZAJ["Lekar"]:
-                self.spisakListBox.insert(index, f'{lekar["Ime"]} {lekar["Prezime"]}')
-
-            self.podaciText.config(state=NORMAL)
-            self.podaciText.delete(1.0, END)
-            self.podaciText.config(state=DISABLED)
-
-    def prikaziPodatke(self, *args):
-        index = self.spisakListBox.curselection()[0]
-        text = (
-            f'Ime: {BAZA_SADRZAJ["Lekar"][index]["Ime"]}\n'
-            f'Prezime: {BAZA_SADRZAJ["Lekar"][index]["Prezime"]}\n'
-            f'Datum rodjenja: {BAZA_SADRZAJ["Lekar"][index]["Datum rodjenja"]}\n'
-            f'JMBG: {BAZA_SADRZAJ["Lekar"][index]["JMBG"]}\n'
-            f'Specijalizacija: {BAZA_SADRZAJ["Lekar"][index]["Specijalizacija"]}'
-        )
-            
-        self.podaciText.config(state=NORMAL)
-        self.podaciText.delete(1.0, END)
-        self.podaciText.insert(INSERT, text)
-        self.podaciText.config(state=DISABLED)
-        self.izmeniButton.config(state=NORMAL)
-        self.obrisiButton.config(state=NORMAL)
-
-    def dodajTopLevel(self):
-        self.topLevel = Toplevel(self)
-        self.topLevel.title("Novi lekar")
-        self.topLevel.geometry("300x250")
-        self.topLevel.minsize(300, 250)
-        self.topLevel.maxsize(300, 250)
-
-        self.imeLabel = Label(self.topLevel, text="Ime:", font='Times 15')
-        self.imeLabel.grid(row=0, column=0, padx=5, pady=5)
-        self.imeEntry = Entry(self.topLevel)
-        self.imeEntry.grid(row=0, column=1, padx=5, pady=5)
-        self.prezimeLabel = Label(self.topLevel, text="Prezime:", font='Times 15')
-        self.prezimeLabel.grid(row=1, column=0, padx=5, pady=5)
-        self.prezimeEntry = Entry(self.topLevel)
-        self.prezimeEntry.grid(row=1, column=1, padx=5, pady=5)
-        self.rodjenjeLabel = Label(self.topLevel, text="Datum rodjenja:", font='Times 15')
-        self.rodjenjeLabel.grid(row=2, column=0, padx=5, pady=5)
-        self.rodjenjeEntry = Entry(self.topLevel)
-        self.rodjenjeEntry.grid(row=2, column=1, padx=5, pady=5)
-        self.jmbgLabel = Label(self.topLevel, text="JMBG:", font='Times 15')
-        self.jmbgLabel.grid(row=3, column=0, padx=5, pady=5)
-        self.jmbgEntry = Entry(self.topLevel)
-        self.jmbgEntry.grid(row=3, column=1, padx=5, pady=5)
-        self.specLabel = Label(self.topLevel, text="Specijalizacija:", font='Times 15')
-        self.specLabel.grid(row=4, column=0, padx=5, pady=5)
-        self.specEntry = Entry(self.topLevel)
-        self.specEntry.grid(row=4, column=1, padx=5, pady=5)
-        self.prihvatiButton = Button(self.topLevel, text="Prihvati", command=self.apply_dodajTopLevel)
-        self.prihvatiButton.grid(row=5, column=0, padx=10, pady=10)
-        self.odbaciButton = Button(self.topLevel, text="Odbaci", command=self.close_dodajTopLevel)
-        self.odbaciButton.grid(row=5, column=1, padx=10, pady=10)
-        self.topLevel.grab_set()
-
-    def apply_dodajTopLevel(self):
-        ime = self.imeEntry.get()
-        prezime = self.prezimeEntry.get()
-        # vrednost iz pola datum rodjenja ['dan', 'mesec', 'godina']
-        rodjenje = self.rodjenjeEntry.get().split('.')
-        # formatiran datum u oblik koji nam odgovara za poredjenje datetime.date('godina', 'mesec', 'dan')
-        datumRodjenja = date(int(rodjenje[2]), int(rodjenje[1]), int(rodjenje[0]))
-        # danasnji datum u dormatu datetime.date('godina', 'mesec', 'dan')
-        danasnjiDatum = datetime.now().date()
-        jmbg = self.jmbgEntry.get()
-        spec = self.specEntry.get()
-        jmbgLst = []
-
-        lekari = BAZA_SADRZAJ["Lekar"]
-        if lekari:
-            for lekar in lekari:
-                for key, value in lekar.items():
-                    if key == "JMBG":
-                        jmbgLst.append(value)
-
         if len(ime) < 2:
             messagebox.showerror("Error", "Ime mora biti duze od 2 karaktera")
         elif len(prezime) < 2:
             messagebox.showerror("Error", "Prezime mora biti duze od 2 karaktera")
-        elif datumRodjenja > danasnjiDatum:
+        elif not re.match(oblikDatuma, datum):
+            messagebox.showerror("Error", "Datum mora biti u formatu dd.MM.yyyy")
+        elif date(int(datum.split('.')[2]), int(datum.split('.')[1]), int(datum.split('.')[0])) > datetime.now().date():
             messagebox.showerror("Error", "Datum moze biti najkasnije danasnji")
-        elif jmbg in jmbgLst:
-            messagebox.showerror("Error", "JMBG postoji u bazi")
-        elif len(jmbg) != 13:
-            messagebox.showerror("Error", "JMBG mora biti 13 karaktera")
-        elif len(spec) < 2:
-            messagebox.showerror("Error", "Specijalizacija mora biti duze od 2 karaktera")
         else:
-            novilekar = Lekar(jmbg=jmbg, ime=ime, prezime=prezime, datum_rodjenja=datumRodjenja.strftime("%d-%m-%Y"), specijalizacija=spec)
+            return True
 
+
+class LekariStranica(Frame):
+
+    def __init__(self, parent, controler):
+        Frame.__init__(self, parent)
+
+        self.leviFrame = Frame(self)
+        self.leviFrame.pack(side=LEFT, fill=BOTH, expand=TRUE)
+        self.spisakLekaraLabel = Label(self.leviFrame, text="Spisak pacijenata", font=FONT)
+        self.spisakLekaraLabel.pack(fill=X, padx=5, pady=5)
+        self.spisakLekaraListBox = Listbox(self.leviFrame, selectmode=SINGLE, font=FONT)
+        self.spisakLekaraListBox.pack(fill=BOTH, expand=TRUE, padx=5, pady=5)
+        self.pretragaLekaraEntry = Entry(self.leviFrame, font=FONT)
+        self.pretragaLekaraEntry.pack(side=LEFT, expand=TRUE, fill=BOTH, padx=5, pady=5)
+        self.receptiLekaraButton = Button(self.leviFrame, text="Recepti", font=FONT, command=self.toplevel_recepti_lekara)
+        self.receptiLekaraButton.pack(side=LEFT, expand=TRUE, fill=X, padx=5, pady=5)
+        self.desniFrame = Frame(self,)
+        self.desniFrame.pack(side=RIGHT, fill=Y)
+        self.podaciLekaraLabel = Label(self.desniFrame, text="Podaci pacijenta", font=FONT)
+        self.podaciLekaraLabel.pack(fill=X, padx=5, pady=5)
+        self.podaciLekaraText = Text(self.desniFrame, font=FONT, state=DISABLED)
+        self.podaciLekaraText.pack(fill=BOTH, expand=TRUE, padx=5, pady=5)
+        self.dodajLekaraButton = Button(self.desniFrame, text="Dodaj", font=FONT, command=self.toplevel_dodaj_lekara)
+        self.dodajLekaraButton.pack(side=LEFT, expand=TRUE, fill=X, padx=5, pady=5)
+        self.izmeniLekaraButton = Button(self.desniFrame, text="Izmeni", font=FONT, state=DISABLED, command=self.toplevel_izmeni_lekara)
+        self.izmeniLekaraButton.pack(side=LEFT, expand=TRUE, fill=X, padx=5, pady=5)
+        self.obrisiLekaraButton = Button(self.desniFrame, text="Izbrisi", font=FONT, state=DISABLED, command=self.izbrisi_lekara)
+        self.obrisiLekaraButton.pack(side=LEFT, expand=TRUE, fill=X, padx=5, pady=5)
+
+        self.listaLekara = []
+
+        self.osvezi_listu_lekara()
+        self.popuni_listu_lekara()
+        self.spisakLekaraListBox.bind('<<ListboxSelect>>', self.prikazi_podatke_lekara)
+        self.pretragaLekaraEntry.bind('<KeyRelease>', self.osvezi_listu_lekara)
+
+    def toplevel_dodaj_lekara(self):
+        self.toplevelDodajLekara = Toplevel(self)
+        self.toplevelDodajLekara.title("Novi lekar")
+
+        self.imeLekaraLabel = Label(self.toplevelDodajLekara, text="Ime:", font=FONT)
+        self.imeLekaraLabel.grid(row=0, column=0, padx=5, pady=5)
+        self.imeLekaraEntry = Entry(self.toplevelDodajLekara, font=FONT)
+        self.imeLekaraEntry.grid(row=0, column=1, padx=5, pady=5)
+        self.prezimeLekaraLabel = Label(self.toplevelDodajLekara, text="Prezime:", font=FONT)
+        self.prezimeLekaraLabel.grid(row=1, column=0, padx=5, pady=5)
+        self.prezimeLekaraEntry = Entry(self.toplevelDodajLekara, font=FONT)
+        self.prezimeLekaraEntry.grid(row=1, column=1, padx=5, pady=5)
+        self.datumRodjenjaLekaraLabel = Label(self.toplevelDodajLekara, text="Datum rodjenja:", font=FONT)
+        self.datumRodjenjaLekaraLabel.grid(row=2, column=0, padx=5, pady=5)
+        self.datumRodjenjaLekaraEntry = Entry(self.toplevelDodajLekara, font=FONT)
+        self.datumRodjenjaLekaraEntry.grid(row=2, column=1, padx=5, pady=5)
+        self.jmbgLekaraLabel = Label(self.toplevelDodajLekara, text="JMBG:", font=FONT)
+        self.jmbgLekaraLabel.grid(row=3, column=0, padx=5, pady=5)
+        self.jmbgLekaraEntry = Entry(self.toplevelDodajLekara, font=FONT)
+        self.jmbgLekaraEntry.grid(row=3, column=1, padx=5, pady=5)
+        self.specijalizacijaLekaraLabel = Label(self.toplevelDodajLekara, text="Specijalizacija:", font=FONT)
+        self.specijalizacijaLekaraLabel.grid(row=4, column=0, padx=5, pady=5)
+        self.specijalizacijaLekaraEntry = Entry(self.toplevelDodajLekara, font=FONT)
+        self.specijalizacijaLekaraEntry.grid(row=4, column=1, padx=5, pady=5)
+        self.prihvatiLekaraButton = Button(self.toplevelDodajLekara, text="Prihvati", command=self.toplevel_dodaj_lekara_prihvati)
+        self.prihvatiLekaraButton.grid(row=5, column=0, padx=10, pady=10)
+        self.odbaciLekaraButton = Button(self.toplevelDodajLekara, text="Odbaci", command=self.toplevel_dodaj_lekara_odbaci)
+        self.odbaciLekaraButton.grid(row=5, column=1, padx=10, pady=10)
+
+        self.toplevelDodajLekara.grab_set()
+
+    def toplevel_dodaj_lekara_prihvati(self):
+        imeLekara = self.imeLekaraEntry.get()
+        prezimeLekara = self.prezimeLekaraEntry.get()
+        datumRodjenjaLekara = self.datumRodjenjaLekaraEntry.get()
+        jmbgLekara = self.jmbgLekaraEntry.get()
+        specijalizacijaLekara = self.specijalizacijaLekaraEntry.get()
+
+        if self.validacija_podataka_lekara(imeLekara, prezimeLekara, datumRodjenjaLekara, jmbgLekara, specijalizacijaLekara):
+            novilekar = Lekar(jmbg=jmbgLekara, ime=imeLekara, prezime=prezimeLekara, datum_rodjenja=datumRodjenjaLekara, specijalizacija=specijalizacijaLekara)
+            
             BAZA_SADRZAJ["Lekar"].append(novilekar.__str__())
             BAZA_SADRZAJ["Lekar"].sort(key=itemgetter("Prezime", "Ime"))
             with open(BAZA_FAJL, 'w') as file:
                 json.dump(BAZA_SADRZAJ, file, indent=4)
 
-            self.pretragaEntry.delete(0, END)
-            self.spisakListBox.delete(0, END)
-            index = 0
-            selectIndex = 0
-            for lekar in BAZA_SADRZAJ["Lekar"]:
-                self.spisakListBox.insert(index, f'{lekar["Ime"]} {lekar["Prezime"]}')
-                if novilekar.__str__() == lekar:
-                    selectIndex = index
-
-                index += 1
-
-            self.spisakListBox.select_set(selectIndex)
-            text = (
-                f'Ime: {BAZA_SADRZAJ["Lekar"][selectIndex]["Ime"]}\n'
-                f'Prezime: {BAZA_SADRZAJ["Lekar"][selectIndex]["Prezime"]}\n'
-                f'Datum rodjenja: {BAZA_SADRZAJ["Lekar"][selectIndex]["Datum rodjenja"]}\n'
-                f'JMBG: {BAZA_SADRZAJ["Lekar"][selectIndex]["JMBG"]}\n'
-                f'Specijalizacija: {BAZA_SADRZAJ["Lekar"][selectIndex]["Specijalizacija"]}'
-            )
+            self.pretragaLekaraEntry.delete(0, END)
+            self.osvezi_listu_lekara()
+            self.popuni_listu_lekara()
             
-            self.podaciText.config(state=NORMAL)
-            self.podaciText.delete(1.0, END)
-            self.podaciText.insert(INSERT, text)
-            self.podaciText.config(state=DISABLED)
-            self.topLevel.destroy()
+            indexNovogLekara = self.listaLekara.index(novilekar.__str__())
+            self.spisakLekaraListBox.select_set(indexNovogLekara)     
 
-    def close_dodajTopLevel(self):
-        self.topLevel.destroy()
+            self.prikazi_podatke_lekara()
 
-    def izmeniTopLevel(self):
-        self.topLevel2 = Toplevel(self)
-        self.topLevel2.title("Izmena lekara")
-        self.topLevel2.geometry("300x250")
-        self.topLevel2.minsize(300, 250)
-        self.topLevel2.maxsize(300, 250)
+            self.toplevelDodajLekara.destroy()
 
-        self.imeLabel2 = Label(self.topLevel2, text="Ime:", font='Times 15')
-        self.imeLabel2.grid(row=0, column=0, padx=5, pady=5)
-        self.imeEntry2 = Entry(self.topLevel2)
-        self.imeEntry2.grid(row=0, column=1, padx=5, pady=5)
-        self.prezimeLabel2 = Label(self.topLevel2, text="Prezime:", font='Times 15')
-        self.prezimeLabel2.grid(row=1, column=0, padx=5, pady=5)
-        self.prezimeEntry2 = Entry(self.topLevel2)
-        self.prezimeEntry2.grid(row=1, column=1, padx=5, pady=5)
-        self.rodjenjeLabel2 = Label(self.topLevel2, text="Datum rodjenja:", font='Times 15')
-        self.rodjenjeLabel2.grid(row=2, column=0, padx=5, pady=5)
-        self.rodjenjeEntry2 = Entry(self.topLevel2)
-        self.rodjenjeEntry2.grid(row=2, column=1, padx=5, pady=5)
-        self.jmbgLabel2 = Label(self.topLevel2, text="JMBG:", font='Times 15')
-        self.jmbgLabel2.grid(row=3, column=0, padx=5, pady=5)
-        self.jmbgEntry2 = Entry(self.topLevel2)
-        self.jmbgEntry2.grid(row=3, column=1, padx=5, pady=5)
-        self.lboLabel2 = Label(self.topLevel2, text="Specijalizacija:", font='Times 15')
-        self.lboLabel2.grid(row=4, column=0, padx=5, pady=5)
-        self.specEntry2 = Entry(self.topLevel2)
-        self.specEntry2.grid(row=4, column=1, padx=5, pady=5)
-        self.prihvatiButton2 = Button(self.topLevel2, text="Prihvati", command=self.apply_izmeniTopLevel)
-        self.prihvatiButton2.grid(row=5, column=0, padx=10, pady=10)
-        self.odbaciButton2 = Button(self.topLevel2, text="Odbaci", command=self.close_izmeniTopLevel)
-        self.odbaciButton2.grid(row=5, column=1, padx=10, pady=10)
+    def toplevel_dodaj_lekara_odbaci(self):
+        self.toplevelDodajLekara.destroy()
 
-        self.selectedIndex = self.spisakListBox.curselection()[0]
+    def toplevel_izmeni_lekara(self):
+        self.toplevelIzmeniLekara = Toplevel(self)
+        self.toplevelIzmeniLekara.title("Izmena lekara")
 
-        self.staroIme = BAZA_SADRZAJ["Lekar"][self.selectedIndex]["Ime"]
-        self.staroPrezime = BAZA_SADRZAJ["Lekar"][self.selectedIndex]["Prezime"]
-        self.stariDatumRodjenja = BAZA_SADRZAJ["Lekar"][self.selectedIndex]["Datum rodjenja"].replace("-", ".")
-        jmbg = BAZA_SADRZAJ["Lekar"][self.selectedIndex]["JMBG"]
-        self.staraSpec = BAZA_SADRZAJ["Lekar"][self.selectedIndex]["Specijalizacija"]
+        self.novoImeLekaraLabel = Label(self.toplevelIzmeniLekara, text="Ime:", font=FONT)
+        self.novoImeLekaraLabel.grid(row=0, column=0, padx=5, pady=5)
+        self.novoImeLekaraEntry = Entry(self.toplevelIzmeniLekara, font=FONT)
+        self.novoImeLekaraEntry.grid(row=0, column=1, padx=5, pady=5)
+        self.novoPrezimeLekaraLabel = Label(self.toplevelIzmeniLekara, text="Prezime:", font=FONT)
+        self.novoPrezimeLekaraLabel.grid(row=1, column=0, padx=5, pady=5)
+        self.novoPrezimeLekaraEntry = Entry(self.toplevelIzmeniLekara, font=FONT)
+        self.novoPrezimeLekaraEntry.grid(row=1, column=1, padx=5, pady=5)
+        self.noviDatumRodjenjaLekaraLabel = Label(self.toplevelIzmeniLekara, text="Datum rodjenja:", font=FONT)
+        self.noviDatumRodjenjaLekaraLabel.grid(row=2, column=0, padx=5, pady=5)
+        self.noviDatumRodjenjaLekaraEntry = Entry(self.toplevelIzmeniLekara, font=FONT)
+        self.noviDatumRodjenjaLekaraEntry.grid(row=2, column=1, padx=5, pady=5)
+        self.noviJmbgLekaraLabel = Label(self.toplevelIzmeniLekara, text="JMBG:", font=FONT)
+        self.noviJmbgLekaraLabel.grid(row=3, column=0, padx=5, pady=5)
+        self.noviJmbgLekaraEntry = Entry(self.toplevelIzmeniLekara, font=FONT)
+        self.noviJmbgLekaraEntry.grid(row=3, column=1, padx=5, pady=5)
+        self.novaSpecijalizacijaLekaraLabel = Label(self.toplevelIzmeniLekara, text="Specijalizacija:", font=FONT)
+        self.novaSpecijalizacijaLekaraLabel.grid(row=4, column=0, padx=5, pady=5)
+        self.novaSpecijalizacijaLekaraEntry = Entry(self.toplevelIzmeniLekara, font=FONT)
+        self.novaSpecijalizacijaLekaraEntry.grid(row=4, column=1, padx=5, pady=5)
+        self.prihvatiNovogLekaraButton = Button(self.toplevelIzmeniLekara, text="Prihvati", command=self.toplevel_izmeni_lekara_prihvati)
+        self.prihvatiNovogLekaraButton.grid(row=5, column=0, padx=10, pady=10)
+        self.odbaciNovogLekaraButton = Button(self.toplevelIzmeniLekara, text="Odbaci", command=self.toplevel_izmeni_lekara_odbaci)
+        self.odbaciNovogLekaraButton.grid(row=5, column=1, padx=10, pady=10)
 
-        self.imeEntry2.insert(0, self.staroIme)
-        self.prezimeEntry2.insert(0, self.staroPrezime)
-        self.rodjenjeEntry2.insert(0, self.stariDatumRodjenja)
-        self.jmbgEntry2.insert(0, jmbg)
-        self.specEntry2.insert(0, self.staraSpec)
-        self.jmbgEntry2.config(state=DISABLED)  
-        self.topLevel2.grab_set()
+        self.stariLekar = {}
+        indexTuple = self.spisakLekaraListBox.curselection()
+        if indexTuple:
+            index = indexTuple[0]
 
-    def apply_izmeniTopLevel(self):
-        novoIme = self.imeEntry2.get()
-        novoPrezime = self.prezimeEntry2.get()
-        rodjenje = self.rodjenjeEntry2.get()
-        # vrednost iz pola datum rodjenja ['dan', 'mesec', 'godina']
-        novoRodjenje = rodjenje.split('.')
-        # formatiran datum u oblik koji nam odgovara za poredjenje datetime.date('godina', 'mesec', 'dan')
-        noviDatumRodjenja = date(int(novoRodjenje[2]), int(novoRodjenje[1]), int(novoRodjenje[0]))
-        # danasnji datum u dormatu datetime.date('godina', 'mesec', 'dan')
-        danasnjiDatum = datetime.now().date()
-        jmbg = self.jmbgEntry2.get()
-        novaSpec = self.specEntry2.get()
-        
-        if len(novoIme) < 2:
-            messagebox.showerror("Error", "Ime mora biti duze od 2 karaktera")
-        elif len(novoPrezime) < 2:
-            messagebox.showerror("Error", "Prezime mora biti duze od 2 karaktera")
-        elif noviDatumRodjenja > danasnjiDatum:
-            messagebox.showerror("Error", "Datum moze biti najkasnije danasnji")
-        elif len(novaSpec) < 2:
-            messagebox.showerror("Error", "Specijalizacija mora biti duza od 2 karaktera")
-        else:
-            BAZA_SADRZAJ["Lekar"][self.selectedIndex]["Ime"] = novoIme
-            BAZA_SADRZAJ["Lekar"][self.selectedIndex]["Prezime"] = novoPrezime
-            BAZA_SADRZAJ["Lekar"][self.selectedIndex]["Datum rodjenja"] = noviDatumRodjenja.strftime("%d-%m-%Y")
-            BAZA_SADRZAJ["Lekar"][self.selectedIndex]["Specijalizacija"] = novaSpec  
+            self.stariLekar = self.listaLekara[index]
+            self.novoImeLekaraEntry.insert(0, self.stariLekar["Ime"])
+            self.novoPrezimeLekaraEntry.insert(0, self.stariLekar["Prezime"])
+            self.noviDatumRodjenjaLekaraEntry.insert(0, self.stariLekar["Datum rodjenja"])
+            self.noviJmbgLekaraEntry.insert(0, self.stariLekar["JMBG"])
+            self.novaSpecijalizacijaLekaraEntry.insert(0, self.stariLekar["Specijalizacija"])
+
+            self.noviJmbgLekaraEntry.config(state=DISABLED)
+
+            self.toplevelIzmeniLekara.grab_set()
+
+    def toplevel_izmeni_lekara_prihvati(self):
+        novoImeLekara = self.novoImeLekaraEntry.get()
+        novoPrezimeLekara = self.novoPrezimeLekaraEntry.get()
+        noviDatumRodjenjaLekara = self.noviDatumRodjenjaLekaraEntry.get()
+        noviJmbgLekara = self.noviJmbgLekaraEntry.get()
+        novaSpecijalizacijaLekara = self.novaSpecijalizacijaLekaraEntry.get()
+
+        if self.validacija_izmene_podataka_lekara(novoImeLekara, novoPrezimeLekara, noviDatumRodjenjaLekara, novaSpecijalizacijaLekara):
+            BAZA_SADRZAJ["Lekar"].remove(self.stariLekar)
+
+            novilekar = Lekar(jmbg=noviJmbgLekara, ime=novoImeLekara, prezime=novoPrezimeLekara, datum_rodjenja=noviDatumRodjenjaLekara, specijalizacija=novaSpecijalizacijaLekara)
+            
+            BAZA_SADRZAJ["Lekar"].append(novilekar.__str__())
             BAZA_SADRZAJ["Lekar"].sort(key=itemgetter("Prezime", "Ime"))
+
+            for recept in BAZA_SADRZAJ["Recept"]:
+                if recept["Lekar"] == self.stariLekar:
+                    recept["Lekar"] = novilekar.__str__()
+
             with open(BAZA_FAJL, 'w') as file:
                 json.dump(BAZA_SADRZAJ, file, indent=4)
 
-            self.pretragaEntry.delete(0, END)
-            self.spisakListBox.delete(0, END)
-            index = 0
-            selectIndex = 0
+            self.pretragaLekaraEntry.delete(0, END)
+            self.osvezi_listu_lekara()
+            self.popuni_listu_lekara()
+            
+            indexNovogLekara = self.listaLekara.index(novilekar.__str__())
+            self.spisakLekaraListBox.select_set(indexNovogLekara)     
+
+            self.prikazi_podatke_lekara()
+
+            self.toplevelIzmeniLekara.destroy()
+
+    def toplevel_izmeni_lekara_odbaci(self):
+        self.toplevelIzmeniLekara.destroy()
+
+    def toplevel_recepti_lekara(self):
+        self.toplevelReceptiLekara = Toplevel(self)
+        self.toplevelReceptiLekara.title("Recepti")
+        self.receptiLekaraText = Text(self.toplevelReceptiLekara, state=DISABLED)
+        self.receptiLekaraText.pack(padx=5, pady=5)
+        self.izadjiButton2 = Button(self.toplevelReceptiLekara, text="Izadji", command=self.toplevel_recepti_lekara_zatvori)
+        self.izadjiButton2.pack(padx=5, pady=5)
+        
+        self.toplevel_recepti_lekara_popuni()
+        self.toplevelReceptiLekara.grab_set()
+
+    def toplevel_recepti_lekara_popuni(self, *args):
+        text = ""
+
+        indexTuple = self.spisakLekaraListBox.curselection()
+        if indexTuple:
+            index = indexTuple[0]
+            lekar = self.listaLekara[index]
+            for recept in BAZA_SADRZAJ["Recept"]:
+                if recept["Lekar"] == lekar:
+                    text += (
+                        f'Pacijent:\n\tIme: {recept["Pacijent"]["Ime"]}\n\tPrezime: {recept["Pacijent"]["Prezime"]}\n\tLBO: {recept["Pacijent"]["LBO"]}\n'
+                        f'Lekar:\n\tIme: {recept["Lekar"]["Ime"]}\n\tPrezime: {recept["Lekar"]["Prezime"]}\n\tJMBG: {recept["Lekar"]["JMBG"]}\n'
+                        f'Lek:\n\tNaziv: {recept["Lek"]["Naziv leka"]}\n\tProizvodjac: {recept["Lek"]["Proizvodjac leka"]}\n\tJKL: {recept["Lek"]["Sifra JKL"]}\n'
+                        f'Kolicina: {recept["Kolicina"]}\n'
+                        f'Izvestaj: {recept["Izvestaj"]}\n'
+                        f'Datum: {recept["Datum"]}\n\n'
+                        '------------------------------------------------------\n'
+                    )
+            
+        self.receptiLekaraText.config(state=NORMAL)
+        self.receptiLekaraText.delete(1.0, END)
+        self.receptiLekaraText.insert(INSERT, text)
+        self.receptiLekaraText.config(state=DISABLED)
+
+    def toplevel_recepti_lekara_zatvori(self):
+        self.toplevelReceptiLekara.destroy()
+
+    def izbrisi_lekara(self):
+        if messagebox.askyesno(title="Potvrda", message="Bice obrisani i povezani recepti!"):
+            
+            indexTuple = self.spisakLekaraListBox.curselection()
+            if indexTuple:
+                index = indexTuple[0]
+                
+                lekar = self.listaLekara[index]
+                recepti = [recept for recept in BAZA_SADRZAJ["Recept"] if recept["Lekar"] == lekar]
+                        
+                BAZA_SADRZAJ["Lekar"].remove(lekar)
+                for recept in recepti:
+                    BAZA_SADRZAJ["Recept"].remove(recept)
+
+            BAZA_SADRZAJ["Lekar"].sort(key=itemgetter("Prezime", "Ime"))
+            with open(BAZA_FAJL, 'w') as file:
+                json.dump(BAZA_SADRZAJ, file, indent=4)
+            
+            self.pretragaLekaraEntry.delete(0, END)
+            self.osvezi_listu_lekara()
+            self.popuni_listu_lekara()
+
+    def osvezi_listu_lekara(self, *args):
+        sadrzajPretrage = self.pretragaLekaraEntry.get()
+        self.listaLekara = []
+
+        if self.pretragaLekaraEntry.get() == "":
+            self.listaLekara = BAZA_SADRZAJ["Lekar"]
+        
+        else:
             for lekar in BAZA_SADRZAJ["Lekar"]:
-                self.spisakListBox.insert(index, f'{lekar["Ime"]} {lekar["Prezime"]}')
-                if jmbg == lekar["JMBG"]:
-                    selectIndex = index
+                if lekar["Ime"].lower().find(sadrzajPretrage.lower()) != -1 or lekar["Prezime"].lower().find(sadrzajPretrage.lower()) != -1:
+                    self.listaLekara.append(lekar)
 
-                index += 1
+        self.popuni_listu_lekara(self)
 
-            self.spisakListBox.select_set(selectIndex)
+    def popuni_listu_lekara(self, *args):
+        self.spisakLekaraListBox.delete(0, END)
+        self.podaciLekaraText.config(state=NORMAL)
+        self.podaciLekaraText.delete(1.0, END)
+        self.podaciLekaraText.config(state=DISABLED)
+        
+        for lekar in self.listaLekara:
+            self.spisakLekaraListBox.insert(self.listaLekara.index(lekar), f'{lekar["Ime"]} {lekar["Prezime"]}')
+
+    def prikazi_podatke_lekara(self, *args):
+        text = ""
+        
+        indexTuple = self.spisakLekaraListBox.curselection()
+        if indexTuple:
+            index = indexTuple[0]
+
             text = (
-                f'Ime: {BAZA_SADRZAJ["Lekar"][selectIndex]["Ime"]}\n'
-                f'Prezime: {BAZA_SADRZAJ["Lekar"][selectIndex]["Prezime"]}\n'
-                f'Datum rodjenja: {BAZA_SADRZAJ["Lekar"][selectIndex]["Datum rodjenja"]}\n'
-                f'JMBG: {BAZA_SADRZAJ["Lekar"][selectIndex]["JMBG"]}\n'
-                f'Specijalizacija: {BAZA_SADRZAJ["Lekar"][selectIndex]["Specijalizacija"]}'
+                f'Ime: {self.listaLekara[index]["Ime"]}\n'
+                f'Prezime: {self.listaLekara[index]["Prezime"]}\n'
+                f'Datum rodjenja: {self.listaLekara[index]["Datum rodjenja"]}\n'
+                f'JMBG: {self.listaLekara[index]["JMBG"]}\n'
+                f'Specijalizacija: {self.listaLekara[index]["Specijalizacija"]}'
             )
             
-            self.podaciText.config(state=NORMAL)
-            self.podaciText.delete(1.0, END)
-            self.podaciText.insert(INSERT, text)
-            self.podaciText.config(state=DISABLED)
-            self.topLevel2.destroy()
+        self.podaciLekaraText.config(state=NORMAL)
+        self.podaciLekaraText.delete(1.0, END)
+        self.podaciLekaraText.insert(INSERT, text)
+        self.podaciLekaraText.config(state=DISABLED)
+        self.izmeniLekaraButton.config(state=NORMAL)
+        self.obrisiLekaraButton.config(state=NORMAL)
 
-    def close_izmeniTopLevel(self):
-        self.topLevel2.destroy()
+    def validacija_podataka_lekara(self, ime, prezime, datum, jmbg, specijalizacija):
+        oblikDatuma = r"^(0[1-9]|[12][0-9]|3[01])[.](0[1-9]|1[012])[.](\d\d\d\d)"
+        jmbgLst = []
+
+        for lekar in BAZA_SADRZAJ["Lekar"]:
+            for key, value in lekar.items():
+                if key == "JMBG":
+                    jmbgLst.append(value)
+        
+        if len(ime) < 2:
+            messagebox.showerror("Error", "Ime mora biti duze od 2 karaktera")
+        elif len(prezime) < 2:
+            messagebox.showerror("Error", "Prezime mora biti duze od 2 karaktera")
+        elif not re.match(oblikDatuma, datum):
+            messagebox.showerror("Error", "Datum mora biti u formatu dd.MM.yyyy")
+        elif date(int(datum.split('.')[2]), int(datum.split('.')[1]), int(datum.split('.')[0])) > datetime.now().date():
+            messagebox.showerror("Error", "Datum moze biti najkasnije danasnji")
+        elif jmbg in jmbgLst:
+            messagebox.showerror("Error", "JMBG postoji u bazi")
+        elif len(jmbg) != 13:
+            messagebox.showerror("Error", "JMBG mora biti 13 karaktera")
+        elif len(specijalizacija) < 2:
+            messagebox.showerror("Error", "Specijalizacija mora biti duza od 2 karaktera")
+        else:
+            return True
+
+    def validacija_izmene_podataka_lekara(self, ime, prezime, datum, specijalizacija):
+        oblikDatuma = r"^(0[1-9]|[12][0-9]|3[01])[.](0[1-9]|1[012])[.](\d\d\d\d)"
+        
+        if len(ime) < 2:
+            messagebox.showerror("Error", "Ime mora biti duze od 2 karaktera")
+        elif len(prezime) < 2:
+            messagebox.showerror("Error", "Prezime mora biti duze od 2 karaktera")
+        elif not re.match(oblikDatuma, datum):
+            messagebox.showerror("Error", "Datum mora biti u formatu dd.MM.yyyy")
+        elif date(int(datum.split('.')[2]), int(datum.split('.')[1]), int(datum.split('.')[0])) > datetime.now().date():
+            messagebox.showerror("Error", "Datum moze biti najkasnije danasnji")
+        elif len(specijalizacija) < 2:
+            messagebox.showerror("Error", "Specijalizacija mora biti duza od 2 karaktera")
+        else:
+            return True
 
 
-class LekoviPage(Frame):
+class LekoviStranica(Frame):
 
     def __init__(self, parent, controler):
         Frame.__init__(self, parent)
 
-        self.leftFrame = Frame(self)
-        self.leftFrame.pack(side=LEFT, fill=BOTH, expand=TRUE)
-        self.spisakLabel = Label(self.leftFrame, text="Spisak lekova", font='Times 15')
-        self.spisakLabel.pack(fill=X, padx=5, pady=5)
-        self.spisakListBox = Listbox(self.leftFrame, selectmode=SINGLE)
-        self.spisakListBox.pack(fill=BOTH, expand=TRUE, padx=5, pady=5)
-        self.spisakListBox.bind('<<ListboxSelect>>', self.prikaziPodatke)
-        self.pretragaEntry = Entry(self.leftFrame)
-        self.pretragaEntry.pack(side=LEFT, expand=TRUE, fill=BOTH, padx=5, pady=5)
-        self.rightFrame = Frame(self,)
-        self.rightFrame.pack(side=RIGHT, fill=Y)
-        self.podaciLabel = Label(self.rightFrame, text="Podaci o leku", font='Times 15')
-        self.podaciLabel.pack(fill=X, padx=5, pady=5)
-        self.podaciText = Text(self.rightFrame, state=DISABLED)
-        self.podaciText.pack(fill=BOTH, expand=TRUE, padx=5, pady=5)
-        self.dodajButton = Button(self.rightFrame, text="Dodaj", font='Times 15', command=self.dodajTopLevel)
-        self.dodajButton.pack(side=LEFT, expand=TRUE, fill=X, padx=5, pady=5)
-        self.izmeniButton = Button(self.rightFrame, text="Izmeni", font='Times 15', state=DISABLED, command=self.izmeniTopLevel)
-        self.izmeniButton.pack(side=LEFT, expand=TRUE, fill=X, padx=5, pady=5)
-        self.obrisiButton = Button(self.rightFrame, text="Izbrisi", font='Times 15', state=DISABLED, command=self.obrisiLek)
-        self.obrisiButton.pack(side=LEFT, expand=TRUE, fill=X, padx=5, pady=5)
+        self.leviFrame = Frame(self)
+        self.leviFrame.pack(side=LEFT, fill=BOTH, expand=TRUE)
+        self.spisakLekovaLabel = Label(self.leviFrame, text="Spisak lekova", font=FONT)
+        self.spisakLekovaLabel.pack(fill=X, padx=5, pady=5)
+        self.spisakLekovaListBox = Listbox(self.leviFrame, selectmode=SINGLE, font=FONT)
+        self.spisakLekovaListBox.pack(fill=BOTH, expand=TRUE, padx=5, pady=5)
+        self.pretragaLekovaEntry = Entry(self.leviFrame, font=FONT)
+        self.pretragaLekovaEntry.pack(side=LEFT, expand=TRUE, fill=BOTH, padx=5, pady=5)
+        self.desniFrame = Frame(self,)
+        self.desniFrame.pack(side=RIGHT, fill=Y)
+        self.podaciLekovaLabel = Label(self.desniFrame, text="Podaci lekova", font=FONT)
+        self.podaciLekovaLabel.pack(fill=X, padx=5, pady=5)
+        self.podaciLekovaText = Text(self.desniFrame, font=FONT, state=DISABLED)
+        self.podaciLekovaText.pack(fill=BOTH, expand=TRUE, padx=5, pady=5)
+        self.dodajLekButton = Button(self.desniFrame, text="Dodaj", font=FONT, command=self.toplevel_dodaj_lek)
+        self.dodajLekButton.pack(side=LEFT, expand=TRUE, fill=X, padx=5, pady=5)
+        self.izmeniLekButton = Button(self.desniFrame, text="Izmeni", font=FONT, state=DISABLED, command=self.toplevel_izmeni_lek)
+        self.izmeniLekButton.pack(side=LEFT, expand=TRUE, fill=X, padx=5, pady=5)
+        self.obrisiLekButton = Button(self.desniFrame, text="Izbrisi", font=FONT, state=DISABLED, command=self.izbrisi_lek)
+        self.obrisiLekButton.pack(side=LEFT, expand=TRUE, fill=X, padx=5, pady=5)
 
-        lekovi = BAZA_SADRZAJ["Lek"]
+        self.listaLekova = []
 
-        index = 0
-        for lek in lekovi:
-            self.spisakListBox.insert(index, f'{lek["Naziv leka"]}')
-            index += 1
+        self.osvezi_listu_lekova()
+        self.popuni_listu_lekova()
+        self.spisakLekovaListBox.bind('<<ListboxSelect>>', self.prikazi_podatke_leka)
+        self.pretragaLekovaEntry.bind('<KeyRelease>', self.osvezi_listu_lekova)
 
-    def obrisiLek(self):
-        index = self.spisakListBox.curselection()[0]
-        lek = BAZA_SADRZAJ["Lek"][index]
-        spisakRecepata = []
+    def toplevel_dodaj_lek(self):
+        self.toplevelDodajLek = Toplevel(self)
+        self.toplevelDodajLek.title("Novi lek")
 
-        for recept in BAZA_SADRZAJ["Recept"]:
-            if recept["Lek"] == lek:
-                spisakRecepata.append(recept)
+        self.nazivLekaLabel = Label(self.toplevelDodajLek, text="Naziv:", font=FONT)
+        self.nazivLekaLabel.grid(row=0, column=0, padx=5, pady=5)
+        self.nazivLekaEntry = Entry(self.toplevelDodajLek, font=FONT)
+        self.nazivLekaEntry.grid(row=0, column=1, padx=5, pady=5)
+        self.proizvodjacLekaLabel = Label(self.toplevelDodajLek, text="Proizvodjac:", font=FONT)
+        self.proizvodjacLekaLabel.grid(row=1, column=0, padx=5, pady=5)
+        self.proizvodjacLekaEntry = Entry(self.toplevelDodajLek, font=FONT)
+        self.proizvodjacLekaEntry.grid(row=1, column=1, padx=5, pady=5)
+        self.tipLekaLabel = Label(self.toplevelDodajLek, text="Tip:", font=FONT)
+        self.tipLekaLabel.grid(row=2, column=0, padx=5, pady=5)
+        self.tipLekaEntry = Entry(self.toplevelDodajLek, font=FONT)
+        self.tipLekaEntry.grid(row=2, column=1, padx=5, pady=5)
+        self.jklLekaLabel = Label(self.toplevelDodajLek, text="JKL:", font=FONT)
+        self.jklLekaLabel.grid(row=3, column=0, padx=5, pady=5)
+        self.jklLekaEntry = Entry(self.toplevelDodajLek, font=FONT)
+        self.jklLekaEntry.grid(row=3, column=1, padx=5, pady=5)
+        self.prihvatiLekButton = Button(self.toplevelDodajLek, text="Prihvati", command=self.toplevel_dodaj_lek_prihvati)
+        self.prihvatiLekButton.grid(row=5, column=0, padx=10, pady=10)
+        self.odbaciLekButton = Button(self.toplevelDodajLek, text="Odbaci", command=self.toplevel_dodaj_lek_odbaci)
+        self.odbaciLekButton.grid(row=5, column=1, padx=10, pady=10)
 
-        answer = messagebox.askyesno(title="Confirmation", message="Bice obrisani i povezani recepti!")
-        if answer:
-            BAZA_SADRZAJ["Lek"].remove(lek)
-            if spisakRecepata:
-                for recept in spisakRecepata:
-                    BAZA_SADRZAJ["Recept"].remove(recept)
+        self.toplevelDodajLek.grab_set()
 
-            with open(BAZA_FAJL, 'w') as file:
-                json.dump(BAZA_SADRZAJ, file, indent=4)
+    def toplevel_dodaj_lek_prihvati(self):
+        nazivLeka = self.nazivLekaEntry.get()
+        proizvodjacLeka = self.proizvodjacLekaEntry.get()
+        tipLeka = self.tipLekaEntry.get()
+        jklLeka = self.jklLekaEntry.get()
 
-            self.pretragaEntry.delete(0, END)
-            self.spisakListBox.delete(0, END)
-            index = 0
-            for lek in BAZA_SADRZAJ["Lek"]:
-                self.spisakListBox.insert(index, f'{lek["Naziv leka"]}')
-
-            self.podaciText.config(state=NORMAL)
-            self.podaciText.delete(1.0, END)
-            self.podaciText.config(state=DISABLED)
+        if self.validacija_podataka_leka(nazivLeka, proizvodjacLeka, tipLeka, jklLeka):
+            novilek = Lek(sifra_jkl=jklLeka, naziv=nazivLeka, proizvodac=proizvodjacLeka, tip_leka=tipLeka)
             
-
-    def prikaziPodatke(self, *args):
-        index = self.spisakListBox.curselection()[0]
-        text = (
-            f'Naziv: {BAZA_SADRZAJ["Lek"][index]["Naziv leka"]}\n'
-            f'Proizvodjac: {BAZA_SADRZAJ["Lek"][index]["Proizvodjac leka"]}\n'
-            f'Tip: {BAZA_SADRZAJ["Lek"][index]["Tip leka"]}\n'
-            f'JKL: {BAZA_SADRZAJ["Lek"][index]["Sifra JKL"]}\n'
-        )
-            
-        self.podaciText.config(state=NORMAL)
-        self.podaciText.delete(1.0, END)
-        self.podaciText.insert(INSERT, text)
-        self.podaciText.config(state=DISABLED)
-        self.izmeniButton.config(state=NORMAL)
-        self.obrisiButton.config(state=NORMAL)
-
-    def dodajTopLevel(self):
-        self.topLevel = Toplevel(self)
-        self.topLevel.title("Novi lek")
-        self.topLevel.geometry("300x250")
-        self.topLevel.minsize(300, 250)
-        self.topLevel.maxsize(300, 250)
-
-        self.nazivLabel = Label(self.topLevel, text="Naziv:", font='Times 15')
-        self.nazivLabel.grid(row=0, column=0, padx=5, pady=5)
-        self.nazivEntry = Entry(self.topLevel)
-        self.nazivEntry.grid(row=0, column=1, padx=5, pady=5)
-        self.proizvodjacLabel = Label(self.topLevel, text="Proizvodjac:", font='Times 15')
-        self.proizvodjacLabel.grid(row=1, column=0, padx=5, pady=5)
-        self.proizvodjacEntry = Entry(self.topLevel)
-        self.proizvodjacEntry.grid(row=1, column=1, padx=5, pady=5)
-        self.tipLabel = Label(self.topLevel, text="Tip:", font='Times 15')
-        self.tipLabel.grid(row=2, column=0, padx=5, pady=5)
-        self.tipEntry = Entry(self.topLevel)
-        self.tipEntry.grid(row=2, column=1, padx=5, pady=5)
-        self.jklLabel = Label(self.topLevel, text="JKL:", font='Times 15')
-        self.jklLabel.grid(row=3, column=0, padx=5, pady=5)
-        self.jklEntry = Entry(self.topLevel)
-        self.jklEntry.grid(row=3, column=1, padx=5, pady=5)
-        self.prihvatiButton = Button(self.topLevel, text="Prihvati", command=self.apply_dodajTopLevel)
-        self.prihvatiButton.grid(row=5, column=0, padx=10, pady=10)
-        self.odbaciButton = Button(self.topLevel, text="Odbaci", command=self.close_dodajTopLevel)
-        self.odbaciButton.grid(row=5, column=1, padx=10, pady=10)
-        self.topLevel.grab_set()
-
-    def apply_dodajTopLevel(self):
-        naziv = self.nazivEntry.get()
-        proizvodjac = self.proizvodjacEntry.get()
-        tip = self.tipEntry.get()
-        jkl = self.jklEntry.get()
-        jklLst = []
-
-        lekovi = BAZA_SADRZAJ["Lek"]
-        if lekovi:
-            for lek in lekovi:
-                for key, value in lek.items():
-                    if key == "Sifra JKL":
-                        jklLst.append(value)
-
-        if len(naziv) < 2:
-            messagebox.showerror("Error", "Naziv mora biti duzi od 2 karaktera")
-        elif len(proizvodjac) < 2:
-            messagebox.showerror("Error", "Proizvodjac mora biti duzi od 2 karaktera")
-        elif len(tip) < 2:
-            messagebox.showerror("Error", "Tip mora biti duzi od 2 karaktera")
-        elif jkl in jklLst:
-            messagebox.showerror("Error", "JKL postoji u bazi")
-        elif len(jkl) != 7:
-            messagebox.showerror("Error", "JKL mora biti 7 karaktera")
-        else:
-            novilek = Lek(sifra_jkl=jkl, naziv=naziv, proizvodac=proizvodjac, tip_leka=tip)
-
             BAZA_SADRZAJ["Lek"].append(novilek.__str__())
             BAZA_SADRZAJ["Lek"].sort(key=itemgetter("Naziv leka"))
             with open(BAZA_FAJL, 'w') as file:
                 json.dump(BAZA_SADRZAJ, file, indent=4)
 
-            self.pretragaEntry.delete(0, END)
-            self.spisakListBox.delete(0, END)
-            index = 0
-            selectIndex = 0
-            for lek in BAZA_SADRZAJ["Lek"]:
-                self.spisakListBox.insert(index, f'{lek["Naziv leka"]}')
-                if novilek.__str__() == lek:
-                    selectIndex = index
-
-                index += 1
-
-            self.spisakListBox.select_set(selectIndex)
-            text = (
-                f'Naziv: {BAZA_SADRZAJ["Lek"][selectIndex]["Naziv leka"]}\n'
-                f'Proizvodjac: {BAZA_SADRZAJ["Lek"][selectIndex]["Proizvodjac leka"]}\n'
-                f'Tip: {BAZA_SADRZAJ["Lek"][selectIndex]["Tip leka"]}\n'
-                f'JKL: {BAZA_SADRZAJ["Lek"][selectIndex]["Sifra JKL"]}\n'
-            )
+            self.pretragaLekovaEntry.delete(0, END)
+            self.osvezi_listu_lekova()
+            self.popuni_listu_lekova()
             
-            self.podaciText.config(state=NORMAL)
-            self.podaciText.delete(1.0, END)
-            self.podaciText.insert(INSERT, text)
-            self.podaciText.config(state=DISABLED)
-            self.topLevel.destroy()
+            indexNovogLeka = self.listaLekova.index(novilek.__str__())
+            self.spisakLekovaListBox.select_set(indexNovogLeka)     
 
-    def close_dodajTopLevel(self):
-        self.topLevel.destroy()
+            self.prikazi_podatke_leka()
 
-    def izmeniTopLevel(self):
-        self.topLevel2 = Toplevel(self)
-        self.topLevel2.title("Izmena leka")
-        self.topLevel2.geometry("300x250")
-        self.topLevel2.minsize(300, 250)
-        self.topLevel2.maxsize(300, 250)
+            self.toplevelDodajLek.destroy()
 
-        self.nazivLabel2 = Label(self.topLevel2, text="Naziv:", font='Times 15')
-        self.nazivLabel2.grid(row=0, column=0, padx=5, pady=5)
-        self.nazivEntry2 = Entry(self.topLevel2)
-        self.nazivEntry2.grid(row=0, column=1, padx=5, pady=5)
-        self.proizvodjacLabel2 = Label(self.topLevel2, text="Proizvodjac:", font='Times 15')
-        self.proizvodjacLabel2.grid(row=1, column=0, padx=5, pady=5)
-        self.proizvodjacEntry2 = Entry(self.topLevel2)
-        self.proizvodjacEntry2.grid(row=1, column=1, padx=5, pady=5)
-        self.tipLabel2 = Label(self.topLevel2, text="Tip:", font='Times 15')
-        self.tipLabel2.grid(row=3, column=0, padx=5, pady=5)
-        self.tipEntry2 = Entry(self.topLevel2)
-        self.tipEntry2.grid(row=3, column=1, padx=5, pady=5)
-        self.jklLabel2 = Label(self.topLevel2, text="JKL:", font='Times 15')
-        self.jklLabel2.grid(row=4, column=0, padx=5, pady=5)
-        self.jklEntry2 = Entry(self.topLevel2)
-        self.jklEntry2.grid(row=4, column=1, padx=5, pady=5)
-        self.prihvatiButton2 = Button(self.topLevel2, text="Prihvati", command=self.apply_izmeniTopLevel)
-        self.prihvatiButton2.grid(row=5, column=0, padx=10, pady=10)
-        self.odbaciButton2 = Button(self.topLevel2, text="Odbaci", command=self.close_izmeniTopLevel)
-        self.odbaciButton2.grid(row=5, column=1, padx=10, pady=10)
-        self.selectedIndex = self.spisakListBox.curselection()[0]
-        
-        self.stariNaziv = BAZA_SADRZAJ["Lek"][self.selectedIndex]["Naziv leka"]
-        self.stariProizvodjac = BAZA_SADRZAJ["Lek"][self.selectedIndex]["Proizvodjac leka"]
-        self.stariTip = BAZA_SADRZAJ["Lek"][self.selectedIndex]["Tip leka"]
-        jkl = BAZA_SADRZAJ["Lek"][self.selectedIndex]["Sifra JKL"]
+    def toplevel_dodaj_lek_odbaci(self):
+        self.toplevelDodajLek.destroy()
 
-        self.nazivEntry2.insert(0, self.stariNaziv)
-        self.proizvodjacEntry2.insert(0, self.stariProizvodjac)
-        self.tipEntry2.insert(0, self.stariTip)
-        self.jklEntry2.insert(0, jkl)
-        self.jklEntry2.config(state=DISABLED)  
-        self.topLevel2.grab_set()
+    def toplevel_izmeni_lek(self):
+        self.toplevelIzmeniLek = Toplevel(self)
+        self.toplevelIzmeniLek.title("Izmena leka")
 
-    def apply_izmeniTopLevel(self):
-        noviNaziv = self.nazivEntry2.get()
-        noviProizvodjac = self.proizvodjacEntry2.get()
-        noviTip = self.tipEntry2.get()
-        jkl = self.jklEntry2.get()
-        
-        if len(noviNaziv) < 2:
-            messagebox.showerror("Error", "Naziv mora biti duzi od 2 karaktera")
-        elif len(noviProizvodjac) < 2:
-            messagebox.showerror("Error", "Proizvodjac mora biti duze od 2 karaktera")
-        elif len(noviTip) < 2:
-            messagebox.showerror("Error", "Tip mora biti duza od 2 karaktera")
-        else:
-            BAZA_SADRZAJ["Lek"][self.selectedIndex]["Naziv leka"] = noviNaziv
-            BAZA_SADRZAJ["Lek"][self.selectedIndex]["Proizvodjac leka"] = noviProizvodjac
-            BAZA_SADRZAJ["Lek"][self.selectedIndex]["Tip leka"] = noviTip
+        self.noviNazivLekaLabel = Label(self.toplevelIzmeniLek, text="Naziv:", font=FONT)
+        self.noviNazivLekaLabel.grid(row=0, column=0, padx=5, pady=5)
+        self.noviNazivLekaEntry = Entry(self.toplevelIzmeniLek, font=FONT)
+        self.noviNazivLekaEntry.grid(row=0, column=1, padx=5, pady=5)
+        self.noviProizvodjacLekaLabel = Label(self.toplevelIzmeniLek, text="Proizvnodjac:", font=FONT)
+        self.noviProizvodjacLekaLabel.grid(row=1, column=0, padx=5, pady=5)
+        self.noviProizvodjacLekaEntry = Entry(self.toplevelIzmeniLek, font=FONT)
+        self.noviProizvodjacLekaEntry.grid(row=1, column=1, padx=5, pady=5)
+        self.noviTipLekaLabel = Label(self.toplevelIzmeniLek, text="Tip:", font=FONT)
+        self.noviTipLekaLabel.grid(row=2, column=0, padx=5, pady=5)
+        self.noviTipLekaEntry = Entry(self.toplevelIzmeniLek, font=FONT)
+        self.noviTipLekaEntry.grid(row=2, column=1, padx=5, pady=5)
+        self.noviJklLekaLabel = Label(self.toplevelIzmeniLek, text="JKL:", font=FONT)
+        self.noviJklLekaLabel.grid(row=3, column=0, padx=5, pady=5)
+        self.noviJklLekaEntry = Entry(self.toplevelIzmeniLek, font=FONT)
+        self.noviJklLekaEntry.grid(row=3, column=1, padx=5, pady=5)
+        self.prihvatiNoviLekButton = Button(self.toplevelIzmeniLek, text="Prihvati", command=self.toplevel_izmeni_lek_prihvati)
+        self.prihvatiNoviLekButton.grid(row=5, column=0, padx=10, pady=10)
+        self.odbaciNoviLekButton = Button(self.toplevelIzmeniLek, text="Odbaci", command=self.toplevel_izmeni_lek_odbaci)
+        self.odbaciNoviLekButton.grid(row=5, column=1, padx=10, pady=10)
+
+        self.stariLek = {}
+        indexTuple = self.spisakLekovaListBox.curselection()
+        if indexTuple:
+            index = indexTuple[0]
+
+            self.stariLek = self.listaLekova[index]
+            self.noviNazivLekaEntry.insert(0, self.stariLek["Naziv leka"])
+            self.noviProizvodjacLekaEntry.insert(0, self.stariLek["Proizvodjac leka"])
+            self.noviTipLekaEntry.insert(0, self.stariLek["Tip leka"])
+            self.noviJklLekaEntry.insert(0, self.stariLek["Sifra JKL"])
+
+            self.noviJklLekaEntry.config(state=DISABLED)
+
+            self.toplevelIzmeniLek.grab_set()
+
+    def toplevel_izmeni_lek_prihvati(self):
+        noviNazivLeka = self.noviNazivLekaEntry.get()
+        noviProizvodjacLeka = self.noviProizvodjacLekaEntry.get()
+        noviTipLeka = self.noviTipLekaEntry.get()
+        noviJklLeka = self.noviJklLekaEntry.get()
+
+        if self.validacija_izmene_podataka_leka(noviNazivLeka, noviProizvodjacLeka, noviTipLeka):
+            BAZA_SADRZAJ["Lek"].remove(self.stariLek)
+
+            novilek = Lek(sifra_jkl=noviJklLeka, naziv=noviNazivLeka, proizvodac=noviProizvodjacLeka, tip_leka=noviTipLeka)
+            
+            BAZA_SADRZAJ["Lek"].append(novilek.__str__())
             BAZA_SADRZAJ["Lek"].sort(key=itemgetter("Naziv leka"))
+
+            for recept in BAZA_SADRZAJ["Recept"]:
+                if recept["Lek"] == self.stariLek:
+                    recept["Lek"] = novilek.__str__()
+
             with open(BAZA_FAJL, 'w') as file:
                 json.dump(BAZA_SADRZAJ, file, indent=4)
 
-            self.pretragaEntry.delete(0, END)
-            self.spisakListBox.delete(0, END)
-            index = 0
-            selectIndex = 0
+            self.pretragaLekovaEntry.delete(0, END)
+            self.osvezi_listu_lekova()
+            self.popuni_listu_lekova()
+            
+            indexNovogLeka = self.listaLekova.index(novilek.__str__())
+            self.spisakLekovaListBox.select_set(indexNovogLeka)     
+
+            self.prikazi_podatke_leka()
+
+            self.toplevelIzmeniLek.destroy()
+
+    def toplevel_izmeni_lek_odbaci(self):
+        self.toplevelIzmeniLek.destroy()
+
+    def izbrisi_lek(self):
+        if messagebox.askyesno(title="Potvrda", message="Bice obrisani i povezani recepti!"):
+            
+            indexTuple = self.spisakLekovaListBox.curselection()
+            if indexTuple:
+                index = indexTuple[0]
+                
+                lek = self.listaLekova[index]
+                recepti = [recept for recept in BAZA_SADRZAJ["Recept"] if recept["Lek"] == lek]
+                        
+                BAZA_SADRZAJ["Lek"].remove(lek)
+                for recept in recepti:
+                    BAZA_SADRZAJ["Recept"].remove(recept)
+
+            BAZA_SADRZAJ["Lek"].sort(key=itemgetter("Naziv leka"))
+            with open(BAZA_FAJL, 'w') as file:
+                json.dump(BAZA_SADRZAJ, file, indent=4)
+            
+            self.pretragaLekovaEntry.delete(0, END)
+            self.osvezi_listu_lekova()
+            self.popuni_listu_lekova()
+
+    def osvezi_listu_lekova(self, *args):
+        sadrzajPretrage = self.pretragaLekovaEntry.get()
+        self.listaLekova = []
+
+        if self.pretragaLekovaEntry.get() == "":
+            self.listaLekova = BAZA_SADRZAJ["Lek"]
+        
+        else:
             for lek in BAZA_SADRZAJ["Lek"]:
-                self.spisakListBox.insert(index, f'{lek["Naziv leka"]}')
-                if jkl == lek["Sifra JKL"]:
-                    selectIndex = index
+                if lek["Naziv leka"].lower().find(sadrzajPretrage.lower()) != -1:
+                    self.listaLekova.append(lek)
 
-                index += 1
+        self.popuni_listu_lekova(self)
 
-            self.spisakListBox.select_set(selectIndex)
+    def popuni_listu_lekova(self, *args):
+        self.spisakLekovaListBox.delete(0, END)
+        self.podaciLekovaText.config(state=NORMAL)
+        self.podaciLekovaText.delete(1.0, END)
+        self.podaciLekovaText.config(state=DISABLED)
+        
+        for lek in self.listaLekova:
+            self.spisakLekovaListBox.insert(self.listaLekova.index(lek), f'{lek["Naziv leka"]}')
+
+    def prikazi_podatke_leka(self, *args):
+        text = ""
+        
+        indexTuple = self.spisakLekovaListBox.curselection()
+        if indexTuple:
+            index = indexTuple[0]
+
             text = (
-                f'Naziv: {BAZA_SADRZAJ["Lek"][selectIndex]["Naziv leka"]}\n'
-                f'Proizvodjac: {BAZA_SADRZAJ["Lek"][selectIndex]["Proizvodjac leka"]}\n'
-                f'Tip: {BAZA_SADRZAJ["Lek"][selectIndex]["Tip leka"]}\n'
-                f'JKL: {BAZA_SADRZAJ["Lek"][selectIndex]["Sifra JKL"]}\n'
+                f'Naziv: {self.listaLekova[index]["Naziv leka"]}\n'
+                f'Proizvodjac: {self.listaLekova[index]["Proizvodjac leka"]}\n'
+                f'Tip: {self.listaLekova[index]["Tip leka"]}\n'
+                f'JKL: {self.listaLekova[index]["Sifra JKL"]}'
             )
             
-            self.podaciText.config(state=NORMAL)
-            self.podaciText.delete(1.0, END)
-            self.podaciText.insert(INSERT, text)
-            self.podaciText.config(state=DISABLED)
-            self.topLevel2.destroy()
+        self.podaciLekovaText.config(state=NORMAL)
+        self.podaciLekovaText.delete(1.0, END)
+        self.podaciLekovaText.insert(INSERT, text)
+        self.podaciLekovaText.config(state=DISABLED)
+        self.izmeniLekButton.config(state=NORMAL)
+        self.obrisiLekButton.config(state=NORMAL)
 
-    def close_izmeniTopLevel(self):
-        self.topLevel2.destroy()
+    def validacija_podataka_leka(self, naziv, proizvodjac, tip, jkl):
+        jklLst = []
+
+        for lek in BAZA_SADRZAJ["Lek"]:
+            for key, value in lek.items():
+                if key == "Sifra JKL":
+                    jklLst.append(value)
+        
+        if len(naziv) < 2:
+            messagebox.showerror("Error", "Naziv mora biti duze od 2 karaktera")
+        elif len(proizvodjac) < 2:
+            messagebox.showerror("Error", "Proizvodjac mora biti duze od 2 karaktera")
+        elif len(tip) < 2:
+            messagebox.showerror("Error", "Tip mora biti duze od 2 karaktera")
+        elif jkl in jklLst:
+            messagebox.showerror("Error", "JKL postoji u bazi")
+        elif len(jkl) != 7:
+            messagebox.showerror("Error", "JKL mora biti 7 karaktera")
+        else:
+            return True
+
+    def validacija_izmene_podataka_leka(self, naziv, proizvodjac, tip):        
+        if len(naziv) < 2:
+            messagebox.showerror("Error", "Naziv mora biti duze od 2 karaktera")
+        elif len(proizvodjac) < 2:
+            messagebox.showerror("Error", "Proizvodjac mora biti duze od 2 karaktera")
+        elif len(tip) < 2:
+            messagebox.showerror("Error", "Tip mora biti duze od 2 karaktera")
+        else:
+            return True
 
 
-class ReceptiPage(Frame):
+class ReceptiStranica(Frame):
 
     def __init__(self, parent, controller):
         Frame.__init__(self, parent)
         
         self.leftFrame = Frame(self)
         self.leftFrame.pack(side=LEFT, fill=BOTH, expand=TRUE)
-        self.spisakLabel = Label(self.leftFrame, text="Spisak receata", font='Times 15')
-        self.spisakLabel.pack(fill=X, padx=5, pady=5)
-        self.spisakListBox = Listbox(self.leftFrame, selectmode=SINGLE)
-        self.spisakListBox.pack(fill=BOTH, expand=TRUE, padx=5, pady=5)
-        self.pretragaCombo = ttk.Combobox(self.leftFrame,)
-        self.pretragaCombo.pack(side=LEFT, expand=TRUE, fill=BOTH, padx=5, pady=5)
+        self.spisakRecepataLabel = Label(self.leftFrame, text="Spisak receata", font=FONT)
+        self.spisakRecepataLabel.pack(fill=X, padx=5, pady=5)
+        self.spisakRecepataListBox = Listbox(self.leftFrame, selectmode=SINGLE, font=FONT)
+        self.spisakRecepataListBox.pack(fill=BOTH, expand=TRUE, padx=5, pady=5)        
+        self.pretragaPacijenataCombo = ttk.Combobox(self.leftFrame, font=FONT)
+        self.pretragaPacijenataCombo.pack(side=LEFT, expand=TRUE, fill=BOTH, padx=5, pady=5)
         self.rightFrame = Frame(self,)
         self.rightFrame.pack(side=RIGHT, fill=Y)
-        self.podaciLabel = Label(self.rightFrame, text="Podaci o receptu", font='Times 15')
-        self.podaciLabel.pack(fill=X, padx=5, pady=5)
-        self.podaciText = Text(self.rightFrame, state=DISABLED)
-        self.podaciText.pack(fill=BOTH, expand=TRUE, padx=5, pady=5)
-        self.dodajButton = Button(self.rightFrame, text="Dodaj", font='Times 15', command=self.dodajTopLevel)
-        self.dodajButton.pack(side=LEFT, expand=TRUE, fill=X, padx=5, pady=5)
-        self.izmeniButton = Button(self.rightFrame, text="Izmeni", font='Times 15', state=DISABLED, command=self.izmeniTopLevel)
-        self.izmeniButton.pack(side=LEFT, expand=TRUE, fill=X, padx=5, pady=5)
-        self.obrisiButton = Button(self.rightFrame, text="Izbrisi", font='Times 15', state=DISABLED, command=self.deleteRecept)
-        self.obrisiButton.pack(side=LEFT, expand=TRUE, fill=X, padx=5, pady=5)
+        self.podaciReceptaLabel = Label(self.rightFrame, text="Podaci o receptu", font=FONT)
+        self.podaciReceptaLabel.pack(fill=X, padx=5, pady=5)
+        self.podaciReceptaText = Text(self.rightFrame, font=FONT, state=DISABLED)
+        self.podaciReceptaText.pack(fill=BOTH, expand=TRUE, padx=5, pady=5)
+        self.dodajReceptButton = Button(self.rightFrame, text="Dodaj", font=FONT, command=self.toplevel_dodaj_recept)
+        self.dodajReceptButton.pack(side=LEFT, expand=TRUE, fill=X, padx=5, pady=5)
+        self.izmeniReceptButton = Button(self.rightFrame, text="Izmeni", font=FONT, state=DISABLED, command=self.toplevel_izmeni_recept)
+        self.izmeniReceptButton.pack(side=LEFT, expand=TRUE, fill=X, padx=5, pady=5)
+        self.obrisiReceptButton = Button(self.rightFrame, text="Izbrisi", font=FONT, state=DISABLED, command=self.izbrisi_recept)
+        self.obrisiReceptButton.pack(side=LEFT, expand=TRUE, fill=X, padx=5, pady=5)
 
-        self.pretragaCombo.after(2000, self.updateCombo)
-        self.pretragaCombo.bind('<<ComboboxSelected>>', self.updateList)
-        self.spisakListBox.bind('<<ListboxSelect>>', self.prikaziPodatke)
+        self.spisakPacijenata = []
+        self.spisakRecepata = []
 
-    def deleteRecept(self):
-        pacijentSelectedIndex = self.pretragaCombo.current()
-        receptSelectedIndex = self.spisakListBox.curselection()[0]
+        self.pretragaPacijenataCombo.after(250, self.osvezi_combo_polje_pacijenata)
+        self.pretragaPacijenataCombo.bind('<<ComboboxSelected>>', self.osvezi_listu_recepata)
+        self.spisakRecepataListBox.bind('<<ListboxSelect>>', self.prikazi_podatke_recepta)
 
-        spisakRecepti = []
-
-        pacijent = BAZA_SADRZAJ["Pacijent"][pacijentSelectedIndex - 1]
-        for recept in BAZA_SADRZAJ["Recept"]:
-            if recept["Pacijent"] == pacijent:
-                spisakRecepti.append(recept)
-
-        recept = spisakRecepti[receptSelectedIndex]
+    def toplevel_dodaj_recept(self):
+        selektovaniPacijentIndex = self.pretragaPacijenataCombo.current()
         
-        answer = messagebox.askyesno(title='Confirmation', message='Da li ste sigurni?')
-        if answer:
-            BAZA_SADRZAJ["Recept"].remove(recept)
-            with open(BAZA_FAJL, 'w') as file:
-                json.dump(BAZA_SADRZAJ, file, indent=4)
-
-            self.updateList()
-            self.podaciText.config(state=NORMAL)
-            self.podaciText.delete(1.0, END)
-            self.podaciText.config(state=DISABLED)
-
-    def updateCombo(self):
-        pacijenti = [""]
-        for pacijent in BAZA_SADRZAJ["Pacijent"]:
-            pacijenti.append(f'{pacijent["Ime"]} {pacijent["Prezime"]}')
-        
-        self.pretragaCombo['values'] = tuple()
-        self.pretragaCombo['values'] = tuple(pacijenti)
-        self.pretragaCombo.after(2000, self.updateCombo)
-
-    def updateList(self, *args):
-        recepti = []
-        pacijentSelectedIndex = self.pretragaCombo.current()
-        pacijent = BAZA_SADRZAJ["Pacijent"][pacijentSelectedIndex - 1]
-
-        for recept in BAZA_SADRZAJ["Recept"]:
-            if recept["Pacijent"] == pacijent:
-                recepti.append(f'{recept["Lekar"]["Ime"]} - {recept["Lek"]["Naziv leka"]}')
-        
-        self.spisakListBox.delete(0, END)
-        index = 0
-        for recept in recepti:
-            self.spisakListBox.insert(index, recept)
-            index += 1
-
-        self.podaciText.config(state=NORMAL)
-        self.podaciText.delete(1.0, END)
-        self.podaciText.config(state=DISABLED)
-        self.obrisiButton.config(state=DISABLED)
-        self.izmeniButton.config(state=DISABLED)
-
-    def prikaziPodatke(self, *args):
-        pacijentSelectedIndex = self.pretragaCombo.current()
-        receptSelectedIndex = self.spisakListBox.curselection()[0]
-
-        spisakRecepti = []
-
-        pacijent = BAZA_SADRZAJ["Pacijent"][pacijentSelectedIndex - 1]
-        for recept in BAZA_SADRZAJ["Recept"]:
-            if recept["Pacijent"] == pacijent:
-                spisakRecepti.append(recept)
-
-        recept = spisakRecepti[receptSelectedIndex]
-
-        text = (
-            'Pacijent:\n'
-            f'\tIme: {recept["Pacijent"]["Ime"]}\n'
-            f'\tPrezime: {recept["Pacijent"]["Prezime"]}\n'
-            f'\tJMBG: {recept["Pacijent"]["JMBG"]}\n'
-            'Lekar:\n'
-            f'\tIme: {recept["Lekar"]["Ime"]}\n'
-            f'\tPrezime: {recept["Lekar"]["Prezime"]}\n'
-            f'\tJMBG: {recept["Lekar"]["JMBG"]}\n'
-            f'\tSpecijalizacija: {recept["Lekar"]["Specijalizacija"]}\n'
-            'Lek:\n'
-            f'\tNaziv: {recept["Lek"]["Naziv leka"]}\n'
-            f'\tProizvodjac: {recept["Lek"]["Proizvodjac leka"]}\n'
-            f'\tJKL: {recept["Lek"]["Sifra JKL"]}\n'
-            f'Kolicina: {recept["Kolicina"]}\n'
-            f'Izvestaj: {recept["Izvestaj"]}\n'
-            f'Datum: {recept["Datum"]}\n' 
-        )
-
-        self.podaciText.config(state=NORMAL)
-        self.podaciText.delete(1.0, END)
-        self.podaciText.insert(INSERT, text)
-        self.podaciText.config(state=DISABLED)
-        self.izmeniButton.config(state=NORMAL)
-        self.obrisiButton.config(state=NORMAL)
-
-    def dodajTopLevel(self):
-        self.topLevel = Toplevel(self)
-        self.topLevel.title("Novi recept")
-        self.topLevel.geometry("300x250")
-        self.topLevel.minsize(300, 250)
-        self.topLevel.maxsize(300, 250)
-
-        self.lekarLabel = Label(self.topLevel, text="Lekar:", font='Times 15')
-        self.lekarLabel.grid(row=0, column=0, padx=5, pady=5)
-        self.lekarCombo = ttk.Combobox(self.topLevel)
-        self.lekarCombo.grid(row=0, column=1, padx=5, pady=5)
-        self.lekLabel = Label(self.topLevel, text="Lek:", font='Times 15')
-        self.lekLabel.grid(row=1, column=0, padx=5, pady=5)
-        self.lekCombo = ttk.Combobox(self.topLevel)
-        self.lekCombo.grid(row=1, column=1, padx=5, pady=5)
-        self.kolicinaLabel = Label(self.topLevel, text="Kolicina:", font='Times 15')
-        self.kolicinaLabel.grid(row=2, column=0, padx=5, pady=5)
-        self.kolicinaEntry = Entry(self.topLevel)
-        self.kolicinaEntry.grid(row=2, column=1, padx=5, pady=5)
-        self.izvestajLabel = Label(self.topLevel, text="Izvestaj:", font='Times 15')
-        self.izvestajLabel.grid(row=3, column=0, padx=5, pady=5)
-        self.izvestajEntry = Entry(self.topLevel)
-        self.izvestajEntry.grid(row=3, column=1, padx=5, pady=5)
-        self.datumLabel = Label(self.topLevel, text="Datum:", font='Times 15')
-        self.datumLabel.grid(row=4, column=0, padx=5, pady=5)
-        self.datumEntry = Entry(self.topLevel)
-        self.datumEntry.grid(row=4, column=1, padx=5, pady=5)
-        self.prihvatiButton = Button(self.topLevel, text="Prihvati", command=self.apply_dodajTopLevel)
-        self.prihvatiButton.grid(row=5, column=0, padx=10, pady=10)
-        self.odbaciButton = Button(self.topLevel, text="Odbaci", command=self.close_dodajTopLevel)
-        self.odbaciButton.grid(row=5, column=1, padx=10, pady=10)
-        self.topLevel.grab_set()
-
-        lekari = [""]
-        for lekar in BAZA_SADRZAJ["Lekar"]:
-            lekari.append(f'{lekar["Ime"]} {lekar["Prezime"]}')
-        
-        lekovi = [""]
-        for lek in BAZA_SADRZAJ["Lek"]:
-            lekovi.append(f'{lek["Naziv leka"]}')
-        
-        self.lekarCombo['values'] = tuple(lekari)
-        self.lekarCombo.current(0)
-        self.lekCombo['values'] = tuple(lekovi)
-        self.lekCombo.current(0)
-
-    def apply_dodajTopLevel(self):
-        pacijentIndexSelected = self.pretragaCombo.current()
-        lekarIndexSelected = self.lekarCombo.current()
-        lekIndexSelected = self.lekCombo.current()
-        kolicina = int(self.kolicinaEntry.get())
-        izvestaj = self.izvestajEntry.get()
-        datum = self.datumEntry.get().split('.')
-        # formatiran datum u oblik koji nam odgovara za poredjenje datetime.date('godina', 'mesec', 'dan')
-        datumFormatiran = date(int(datum[2]), int(datum[1]), int(datum[0]))
-        # danasnji datum u dormatu datetime.date('godina', 'mesec', 'dan')
-        danasnjiDatum = datetime.now().date()
-
-        if pacijentIndexSelected == 0:
-            messagebox.showerror("Error", "Zatvorite prozor i selektujte pacijenta")
-        elif lekarIndexSelected == 0:
-            messagebox.showerror("Error", "Selektujte lekara")
-        elif lekIndexSelected == 0:
-            messagebox.showerror("Error", "Selektujte lek")
-        elif kolicina < 1:
-            messagebox.showerror("Error", "Kolicina mora biti veca od 0")
-        elif datumFormatiran > danasnjiDatum:
-            messagebox.showerror("Error", "Datum moze biti najkasnije danasnji")
+        if selektovaniPacijentIndex == 0:
+            messagebox.showerror("Error", "Selektujte pacijenta")
         else:
-            pacijent = BAZA_SADRZAJ["Pacijent"][pacijentIndexSelected - 1]
-            lekar = BAZA_SADRZAJ["Lekar"][lekarIndexSelected - 1]
-            lek = BAZA_SADRZAJ["Lek"][lekIndexSelected - 1]
-            novirecept = Recept(pacijent=pacijent, datum='-'.join(datum), izvestaj=izvestaj, lekar=lekar, lek=lek, kolicina=kolicina)
+            self.spisakLekara = []
+            lekari = [""]
+            self.spisakLekova = []
+            lekovi = [""]
+        
+            for lekar in BAZA_SADRZAJ["Lekar"]:
+                self.spisakLekara.append(lekar)
+                lekari.append(f'{lekar["Ime"]} {lekar["Prezime"]}')
+        
+            for lek in BAZA_SADRZAJ["Lek"]:
+                self.spisakLekova.append(lek)
+                lekovi.append(f'{lek["Naziv leka"]}')
+
+            self.toplevelDodajRecept = Toplevel(self)
+            self.toplevelDodajRecept.title("Novi recept")
+            self.lekarLabel = Label(self.toplevelDodajRecept, text="Lekar:", font=FONT)
+            self.lekarLabel.grid(row=0, column=0, padx=5, pady=5)
+            self.lekarCombo = ttk.Combobox(self.toplevelDodajRecept)
+            self.lekarCombo.grid(row=0, column=1, padx=5, pady=5)
+            self.lekLabel = Label(self.toplevelDodajRecept, text="Lek:", font=FONT)
+            self.lekLabel.grid(row=1, column=0, padx=5, pady=5)
+            self.lekCombo = ttk.Combobox(self.toplevelDodajRecept)
+            self.lekCombo.grid(row=1, column=1, padx=5, pady=5)
+            self.kolicinaLabel = Label(self.toplevelDodajRecept, text="Kolicina:", font=FONT)
+            self.kolicinaLabel.grid(row=2, column=0, padx=5, pady=5)
+            self.kolicinaEntry = Entry(self.toplevelDodajRecept)
+            self.kolicinaEntry.grid(row=2, column=1, padx=5, pady=5)
+            self.izvestajLabel = Label(self.toplevelDodajRecept, text="Izvestaj:", font=FONT)
+            self.izvestajLabel.grid(row=3, column=0, padx=5, pady=5)
+            self.izvestajEntry = Entry(self.toplevelDodajRecept)
+            self.izvestajEntry.grid(row=3, column=1, padx=5, pady=5)
+            self.datumLabel = Label(self.toplevelDodajRecept, text="Datum:", font=FONT)
+            self.datumLabel.grid(row=4, column=0, padx=5, pady=5)
+            self.datumEntry = Entry(self.toplevelDodajRecept)
+            self.datumEntry.grid(row=4, column=1, padx=5, pady=5)
+            self.prihvatiReceptButton = Button(self.toplevelDodajRecept, text="Prihvati", command=self.toplevel_dodaj_recept_prihvati)
+            self.prihvatiReceptButton.grid(row=5, column=0, padx=10, pady=10)
+            self.odbaciReceptButton = Button(self.toplevelDodajRecept, text="Odbaci", command=self.toplevel_dodaj_recept_odbaci)
+            self.odbaciReceptButton.grid(row=5, column=1, padx=10, pady=10)
+        
+            self.lekarCombo['values'] = tuple(lekari)
+            self.lekarCombo.current(0)
+            self.lekCombo['values'] = tuple(lekovi)
+            self.lekCombo.current(0)
+
+            self.toplevelDodajRecept.grab_set()
+
+    def toplevel_dodaj_recept_prihvati(self):
+        selektovaniPacijentIndex = self.pretragaPacijenataCombo.current()
+        selektovaniLekarIndex = self.lekarCombo.current()
+        selektovaniLekIndex = self.lekCombo.current()
+        kolicina = int(self.kolicinaEntry.get()) if self.kolicinaEntry.get() != '' else 0
+        izvestaj = self.izvestajEntry.get()
+        datum = self.datumEntry.get()
+
+        if self.validacija_podataka_recepta(selektovaniLekarIndex, selektovaniLekIndex, kolicina, datum):
+            pacijent = self.spisakPacijenata[selektovaniPacijentIndex - 1]
+            lekar = self.spisakLekara[selektovaniLekarIndex - 1]
+            lek = self.spisakLekova[selektovaniLekIndex - 1]
+
+            novirecept = Recept(pacijent=pacijent, datum=datum, izvestaj=izvestaj, lekar=lekar, lek=lek, kolicina=kolicina)
 
             BAZA_SADRZAJ["Recept"].append(novirecept.__str__())
             with open(BAZA_FAJL, 'w') as file:
                 json.dump(BAZA_SADRZAJ, file, indent=4)
+
+            self.osvezi_listu_recepata()
+            self.popuni_listu_recepata()
             
-            self.topLevel.destroy()
-            self.updateList()
-            self.podaciText.config(state=NORMAL)
-            self.podaciText.delete(1.0, END)
-            self.podaciText.config(state=DISABLED)
+            indexNovogRecepta = self.spisakRecepata.index(novirecept.__str__())
+            self.spisakRecepataListBox.select_set(indexNovogRecepta)     
 
-    def close_dodajTopLevel(self):
-        self.topLevel.destroy()
+            self.prikazi_podatke_recepta()
 
-    def izmeniTopLevel(self):
-        self.topLevel2 = Toplevel(self)
-        self.topLevel2.title("Novi recept")
-        self.topLevel2.geometry("300x250")
-        self.topLevel2.minsize(300, 250)
-        self.topLevel2.maxsize(300, 250)
+            self.toplevelDodajRecept.destroy()
 
-        self.lekarLabel2 = Label(self.topLevel2, text="Lekar:", font='Times 15')
-        self.lekarLabel2.grid(row=0, column=0, padx=5, pady=5)
-        self.lekarCombo2 = ttk.Combobox(self.topLevel2)
-        self.lekarCombo2.grid(row=0, column=1, padx=5, pady=5)
-        self.lekLabel2 = Label(self.topLevel2, text="Lek:", font='Times 15')
-        self.lekLabel2.grid(row=1, column=0, padx=5, pady=5)
-        self.lekCombo2 = ttk.Combobox(self.topLevel2)
-        self.lekCombo2.grid(row=1, column=1, padx=5, pady=5)
-        self.kolicinaLabel2 = Label(self.topLevel2, text="Kolicina:", font='Times 15')
-        self.kolicinaLabel2.grid(row=2, column=0, padx=5, pady=5)
-        self.kolicinaEntry2 = Entry(self.topLevel2)
-        self.kolicinaEntry2.grid(row=2, column=1, padx=5, pady=5)
-        self.izvestajLabel2 = Label(self.topLevel2, text="Izvestaj:", font='Times 15')
-        self.izvestajLabel2.grid(row=3, column=0, padx=5, pady=5)
-        self.izvestajEntry2 = Entry(self.topLevel2)
-        self.izvestajEntry2.grid(row=3, column=1, padx=5, pady=5)
-        self.datumLabel2 = Label(self.topLevel2, text="Datum:", font='Times 15')
-        self.datumLabel2.grid(row=4, column=0, padx=5, pady=5)
-        self.datumEntry2 = Entry(self.topLevel2)
-        self.datumEntry2.grid(row=4, column=1, padx=5, pady=5)
-        self.prihvatiButton2 = Button(self.topLevel2, text="Prihvati", command=self.apply_izmeniTopLevel)
-        self.prihvatiButton2.grid(row=5, column=0, padx=10, pady=10)
-        self.odbaciButton2 = Button(self.topLevel2, text="Odbaci", command=self.close_izmeniTopLevel)
-        self.odbaciButton2.grid(row=5, column=1, padx=10, pady=10)
-        self.topLevel2.grab_set()
+    def toplevel_dodaj_recept_odbaci(self):
+        self.toplevelDodajRecept.destroy()
 
-        lekari = [""]
-        for lekar in BAZA_SADRZAJ["Lekar"]:
-            lekari.append(f'{lekar["Ime"]} {lekar["Prezime"]}')
+    def toplevel_izmeni_recept(self):
+        indexTuple = self.spisakRecepataListBox.curselection()
+        if indexTuple:
+            index = indexTuple[0]
+            self.stariRecept = self.spisakRecepata[index]
         
-        lekovi = [""]
-        for lek in BAZA_SADRZAJ["Lek"]:
-            lekovi.append(f'{lek["Naziv leka"]}')
+            self.spisakLekara = []
+            lekari = [""]
+            self.spisakLekova = []
+            lekovi = [""]
         
-        self.lekarCombo2['values'] = tuple(lekari)
-        self.lekCombo2['values'] = tuple(lekovi)
-
-        #self.stariRecept = {}
-
-        pacijentSelectedIndex = self.pretragaCombo.current()
-        pacijent = BAZA_SADRZAJ["Pacijent"][pacijentSelectedIndex - 1]        
+            for lekar in BAZA_SADRZAJ["Lekar"]:
+                self.spisakLekara.append(lekar)
+                lekari.append(f'{lekar["Ime"]} {lekar["Prezime"]}')
         
-        receptSelectedIndex = self.spisakListBox.curselection()[0]
-        spisakRecepata = []
-        for recept in BAZA_SADRZAJ["Recept"]:
-            if recept["Pacijent"] == pacijent:
-                spisakRecepata.append(recept)
+            for lek in BAZA_SADRZAJ["Lek"]:
+                self.spisakLekova.append(lek)
+                lekovi.append(f'{lek["Naziv leka"]}')
+            
+            self.toplevelIzmeniRecept = Toplevel(self)
+            self.toplevelIzmeniRecept.title("Novi recept")
+            self.noviLekarLabel = Label(self.toplevelIzmeniRecept, text="Lekar:", font=FONT)
+            self.noviLekarLabel.grid(row=0, column=0, padx=5, pady=5)
+            self.noviLekarCombo = ttk.Combobox(self.toplevelIzmeniRecept)
+            self.noviLekarCombo.grid(row=0, column=1, padx=5, pady=5)
+            self.noviLekLabel = Label(self.toplevelIzmeniRecept, text="Lek:", font=FONT)
+            self.noviLekLabel.grid(row=1, column=0, padx=5, pady=5)
+            self.noviLekCombo = ttk.Combobox(self.toplevelIzmeniRecept)
+            self.noviLekCombo.grid(row=1, column=1, padx=5, pady=5)
+            self.novaKolicinaLabel = Label(self.toplevelIzmeniRecept, text="Kolicina:", font=FONT)
+            self.novaKolicinaLabel.grid(row=2, column=0, padx=5, pady=5)
+            self.novaKolicinaEntry = Entry(self.toplevelIzmeniRecept)
+            self.novaKolicinaEntry.grid(row=2, column=1, padx=5, pady=5)
+            self.noviIzvestajLabel = Label(self.toplevelIzmeniRecept, text="Izvestaj:", font=FONT)
+            self.noviIzvestajLabel.grid(row=3, column=0, padx=5, pady=5)
+            self.noviIzvestajEntry = Entry(self.toplevelIzmeniRecept)
+            self.noviIzvestajEntry.grid(row=3, column=1, padx=5, pady=5)
+            self.noviDatumLabel = Label(self.toplevelIzmeniRecept, text="Datum:", font=FONT)
+            self.noviDatumLabel.grid(row=4, column=0, padx=5, pady=5)
+            self.noviDatumEntry = Entry(self.toplevelIzmeniRecept)
+            self.noviDatumEntry.grid(row=4, column=1, padx=5, pady=5)
+            self.prihvatiIzmenuReceptaButton = Button(self.toplevelIzmeniRecept, text="Prihvati", command=self.toplevel_izmeni_recept_prihvati)
+            self.prihvatiIzmenuReceptaButton.grid(row=5, column=0, padx=10, pady=10)
+            self.odbaciIzmenuReceptButton = Button(self.toplevelIzmeniRecept, text="Odbaci", command=self.toplevel_izmeni_recept_odbaci)
+            self.odbaciIzmenuReceptButton.grid(row=5, column=1, padx=10, pady=10)
+        
+            self.noviLekarCombo['values'] = tuple(lekari)
+            self.noviLekarCombo.set(f'{self.stariRecept["Lekar"]["Ime"]} {self.stariRecept["Lekar"]["Prezime"]}')
+            self.noviLekCombo['values'] = tuple(lekovi)
+            self.noviLekCombo.set(f'{self.stariRecept["Lek"]["Naziv leka"]}')
+            self.novaKolicinaEntry.insert(0, f'{self.stariRecept["Kolicina"]}')
+            self.noviIzvestajEntry.insert(0, f'{self.stariRecept["Izvestaj"]}')
+            self.noviDatumEntry.insert(0, f'{self.stariRecept["Datum"]}')
 
-        self.stariRecept = spisakRecepata[receptSelectedIndex]
-        self.lekarCombo2.set(f'{self.stariRecept["Lekar"]["Ime"]} {self.stariRecept["Lekar"]["Prezime"]}')
-        self.lekCombo2.set(f'{self.stariRecept["Lek"]["Naziv leka"]}')
-        self.kolicinaEntry2.insert(0, f'{self.stariRecept["Kolicina"]}')
-        self.izvestajEntry2.insert(0, f'{self.stariRecept["Izvestaj"]}')
-        self.datumEntry2.insert(0, f'{self.stariRecept["Datum"].replace("-", ".")}')
+            self.toplevelIzmeniRecept.grab_set()
 
-    def apply_izmeniTopLevel(self):
-        pacijentIndexSelected = self.pretragaCombo.current()
-        noviLekarIndexSelected = self.lekarCombo2.current()
-        noviLekIndexSelected = self.lekCombo2.current()
-        novaKolicina = int(self.kolicinaEntry2.get())
-        noviIzvestaj = self.izvestajEntry2.get()
-        noviDatum = self.datumEntry2.get().split('.')
-        # formatiran datum u oblik koji nam odgovara za poredjenje datetime.date('godina', 'mesec', 'dan')
-        noviDatumFormatiran = date(int(noviDatum[2]), int(noviDatum[1]), int(noviDatum[0]))
-        # danasnji datum u dormatu datetime.date('godina', 'mesec', 'dan')
-        danasnjiDatum = datetime.now().date()
+    def toplevel_izmeni_recept_prihvati(self):
+        noviSelektovaniPacijentIndex = self.pretragaPacijenataCombo.current()
+        noviSelektovaniLekarIndex = self.noviLekarCombo.current()
+        noviSelektovaniLekIndex = self.noviLekCombo.current()
+        novaKolicina = int(self.novaKolicinaEntry.get()) if self.novaKolicinaEntry.get() != '' else 0
+        noviIzvestaj = self.noviIzvestajEntry.get()
+        noviDatum = self.noviDatumEntry.get()
 
-        if noviLekarIndexSelected == 0:
-            messagebox.showerror("Error", "Selektujte lekara")
-        elif noviLekIndexSelected == 0:
-            messagebox.showerror("Error", "Selektujte lek")
-        elif novaKolicina < 1:
-            messagebox.showerror("Error", "Kolicina mora biti veca od 0")
-        elif noviDatumFormatiran > danasnjiDatum:
-            messagebox.showerror("Error", "Datum moze biti najkasnije danasnji")
-        else:
-            pacijent = BAZA_SADRZAJ["Pacijent"][pacijentIndexSelected - 1]
-            lekar = BAZA_SADRZAJ["Lekar"][noviLekarIndexSelected - 1]
-            lek = BAZA_SADRZAJ["Lek"][noviLekIndexSelected - 1]
-
-            noviRecept = Recept(pacijent=pacijent, datum='-'.join(noviDatum), izvestaj=noviIzvestaj, lekar=lekar, lek=lek, kolicina=novaKolicina)
-
+        if self.validacija_podataka_recepta(noviSelektovaniLekarIndex, noviSelektovaniLekIndex, novaKolicina, noviDatum):
             BAZA_SADRZAJ["Recept"].remove(self.stariRecept)
-            BAZA_SADRZAJ["Recept"].append(noviRecept.__str__())
+
+            noviPacijent = self.spisakPacijenata[noviSelektovaniPacijentIndex - 1]
+            noviLekar = self.spisakLekara[noviSelektovaniLekarIndex - 1]
+            noviLek = self.spisakLekova[noviSelektovaniLekIndex - 1]
+
+            novirecept = Recept(pacijent=noviPacijent, datum=noviDatum, izvestaj=noviIzvestaj, lekar=noviLekar, lek=noviLek, kolicina=novaKolicina)
+
+            BAZA_SADRZAJ["Recept"].append(novirecept.__str__())
             with open(BAZA_FAJL, 'w') as file:
                 json.dump(BAZA_SADRZAJ, file, indent=4)
-            
-            self.topLevel2.destroy()
-            self.updateList()
-            self.podaciText.config(state=NORMAL)
-            self.podaciText.delete(1.0, END)
-            self.podaciText.config(state=DISABLED)
 
-    def close_izmeniTopLevel(self):
-        self.topLevel2.destroy()
+            self.osvezi_listu_recepata()
+            self.popuni_listu_recepata()
+            
+            indexNovogRecepta = self.spisakRecepata.index(novirecept.__str__())
+            self.spisakRecepataListBox.select_set(indexNovogRecepta)     
+
+            self.prikazi_podatke_recepta()
+
+            self.toplevelIzmeniRecept.destroy()
+
+    def toplevel_izmeni_recept_odbaci(self):
+        self.toplevelIzmeniRecept.destroy()
+
+    def izbrisi_recept(self):
+        if messagebox.askyesno(title="Potvrda", message="Bice obrisan selektovani recept!"):
+            indexTuple = self.spisakRecepataListBox.curselection()
+            if indexTuple:
+                index = indexTuple[0]
+                recept = self.spisakRecepata[index]
+
+                BAZA_SADRZAJ["Recept"].remove(recept)
+                with open(BAZA_FAJL, 'w') as file:
+                    json.dump(BAZA_SADRZAJ, file, indent=4)
+            
+                self.osvezi_listu_recepata()
+                self.popuni_listu_recepata()
+
+    def osvezi_combo_polje_pacijenata(self):
+        self.spisakPacijenata = []
+        pacijenti = [""]
+    
+        for pacijent in BAZA_SADRZAJ["Pacijent"]:
+            self.spisakPacijenata.append(pacijent)
+            pacijenti.append(f'{pacijent["Ime"]} {pacijent["Prezime"]}')
+            
+        self.pretragaPacijenataCombo['values'] = tuple(pacijenti)
+        self.pretragaPacijenataCombo.after(250, self.osvezi_combo_polje_pacijenata)
+
+    def osvezi_listu_recepata(self, *args):
+        self.spisakRecepata = []
+        selektovaniPacijentIndex = self.pretragaPacijenataCombo.current()
+
+        if selektovaniPacijentIndex != 0:
+            pacijent = self.spisakPacijenata[selektovaniPacijentIndex - 1]
+            for recept in BAZA_SADRZAJ["Recept"]:
+                if recept["Pacijent"] == pacijent:
+                    self.spisakRecepata.append(recept)
+        
+        self.popuni_listu_recepata()
+
+    def popuni_listu_recepata(self, *args):
+        self.spisakRecepataListBox.delete(0, END)
+        self.podaciReceptaText.config(state=NORMAL)
+        self.podaciReceptaText.delete(1.0, END)
+        self.podaciReceptaText.config(state=DISABLED)
+        
+        for recept in self.spisakRecepata:
+            self.spisakRecepataListBox.insert(self.spisakRecepata.index(recept), f'{recept["Lekar"]["Ime"]} - {recept["Lek"]["Naziv leka"]}')
+
+    def prikazi_podatke_recepta(self, *args):
+        text = ""
+
+        indexTuple = self.spisakRecepataListBox.curselection()
+        if indexTuple:
+            index = indexTuple[0]
+            recept = self.spisakRecepata[index]
+            text += (
+                f'Pacijent:\n\tIme: {recept["Pacijent"]["Ime"]}\n\tPrezime: {recept["Pacijent"]["Prezime"]}\n\tLBO: {recept["Pacijent"]["LBO"]}\n'
+                f'Lekar:\n\tIme: {recept["Lekar"]["Ime"]}\n\tPrezime: {recept["Lekar"]["Prezime"]}\n\tJMBG: {recept["Lekar"]["JMBG"]}\n'
+                f'Lek:\n\tNaziv: {recept["Lek"]["Naziv leka"]}\n\tProizvodjac: {recept["Lek"]["Proizvodjac leka"]}\n\tJKL: {recept["Lek"]["Sifra JKL"]}\n'
+                f'Kolicina: {recept["Kolicina"]}\n'
+                f'Izvestaj: {recept["Izvestaj"]}\n'
+                f'Datum: {recept["Datum"]}'
+            )
+            
+        self.podaciReceptaText.config(state=NORMAL)
+        self.podaciReceptaText.delete(1.0, END)
+        self.podaciReceptaText.insert(INSERT, text)
+        self.podaciReceptaText.config(state=DISABLED)
+        self.izmeniReceptButton.config(state=NORMAL)
+        self.obrisiReceptButton.config(state=NORMAL)
+
+    def validacija_podataka_recepta(self, lekarIndex, lekIndex, kolicina, datum):
+        oblikDatuma = r"^(0[1-9]|[12][0-9]|3[01])[.](0[1-9]|1[012])[.](\d\d\d\d)"
+
+        if lekarIndex == 0:
+            messagebox.showerror("Error", "Selektujte lekara")
+        elif lekIndex == 0:
+            messagebox.showerror("Error", "Selektujte lek")
+        elif kolicina < 1:
+            messagebox.showerror("Error", "Kolicina mora biti veca od 1")
+        elif not re.match(oblikDatuma, datum):
+            messagebox.showerror("Error", "Datum mora biti u formatu dd.MM.yyyy")
+        elif date(int(datum.split('.')[2]), int(datum.split('.')[1]), int(datum.split('.')[0])) > datetime.now().date():
+            messagebox.showerror("Error", "Datum moze biti najkasnije danasnji")
+        else:
+            return True
+
+
+
+
+
 
 
 
@@ -1411,9 +1284,6 @@ class ReceptiPage(Frame):
 
 if __name__ == "__main__":
 
-    # Ukoliko ne postoji json file ili je obrisan kreira se novi data.json.
-    # U tako novokreirani fajl se upisuje inicijalna struktura.
-    # Takodje, ta inicijalna struktura je dodeljena globalnoj promenljivoj
     if not os.path.isfile('data.json'):
         BAZA_SADRZAJ = {}
         BAZA_SADRZAJ['Pacijent'] = []
@@ -1423,25 +1293,20 @@ if __name__ == "__main__":
 
         with open(BAZA_FAJL, 'w') as file:
             json.dump(BAZA_SADRZAJ, file, indent=4)
-    # Ukoliko json file postoji ceta se sadrzaj iz njega.
-    # Taj sadrzaj se smesta u globalnu promenljivu.
+
     else:
         with open(BAZA_FAJL) as file:
             BAZA_SADRZAJ = json.load(file)
         
-        # Sortiranje pacijenata
         if BAZA_SADRZAJ["Pacijent"]:
             BAZA_SADRZAJ["Pacijent"].sort(key=itemgetter("Prezime", "Ime"))
 
-        # Sortiranje lekara
         if BAZA_SADRZAJ["Lekar"]:
             BAZA_SADRZAJ["Lekar"].sort(key=itemgetter("Prezime", "Ime"))
 
-        # Sortiranje leka
         if BAZA_SADRZAJ["Lek"]:
             BAZA_SADRZAJ["Lek"].sort(key=itemgetter("Naziv leka"))
 
     app = MyApp()
     app.title("Apoteka")
-    app.geometry("800x600")
     app.mainloop()
